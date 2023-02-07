@@ -1,0 +1,21 @@
+{
+  "apiserver": {
+    "host": "127.0.0.1",
+    "port": 3001
+  },
+  "dbserver": {
+    "host": "127.0.0.1",
+    "port": 3002
+  },
+  "dbms": {
+    "port": 3306,
+    "host": "127.0.0.1",
+    "user": "root",
+    "password": "root",
+    "schema": "hclab"
+  },
+  "directories": {
+    "charging": "/files/charging",
+    "tmp": "/files/tmp"
+  }
+}
