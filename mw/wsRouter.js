@@ -12,15 +12,12 @@ function wsRouter() {
     //console.log(`conn.socket.readyState: ${connection.socket.readyState}`);
     connection.on('message', (message) => {
       var incoming = JSON.parse(message.utf8Data);
-      if(incoming.req) {
-        controller.cpReq(incoming, connection, () => {
-          //console.log('request returned');
-        });
+      if (incoming.req) {
+        controller.cpReq(incoming, connection);
+        controller.afterWork(incoming, connection);
       }
       else if (incoming.conf) {
-        controller.cpConf(incoming, connection, () => {
-          //console.log('confirmation returned');
-        });
+        controller.cpConf(incoming, connection);
       }
     });
 

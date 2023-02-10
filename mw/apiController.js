@@ -4,41 +4,37 @@ const sockDBServer = require('socket.io-client')(`http://${dbserver.host}:${dbse
 const wsServer = require('../tools/wsServer');
 
 hscanGet = (req, res, next) => {
-  if (req) {
-    sockDBServer.emit('read', "asdfjkl", (result) => {
-      console.log(`hscan returned with ${JSON.stringify(result)}`);
-      res.writeHead(200);
-      res.write(`id: ${result.data.id} conn:${result.data.conn}`);
-      res.end();
-    });
-  }
-  else {
-    sockDBServer.emit('update', req.data, (result) => {
+  var preQuery = { todo: "single", table: "connector", 
+                    connectorSerial: req.params.connectorSerial, userId:req.params.userId };
+  sockDBServer.emit('get', preQuery, (result) => {
+    console.debug(`hscan returned with ${JSON.stringify(result)}`);
+    res.writeHead(200);
+    res.write(`id: ${result.data.id} conn:${result.data.conn}`);
+    res.end();
+  });
 
-    });
-  }
   next();
 }
 
 hscanPut = (req, res, next) => {
-  var data = req.params.id;
+  var preQuery = { todo: "", table: "connector", connectorSerial: req.params.connectorSerial, user}
 
 }
 
 cpGet = (req, res, next) => {
-
+  var preQuery = { todo: "single", table: "connector", chargepointid: req.params.cpId };
 }
 
 cpPut = (req, res, next) => {
 
 }
 
-afterWork = (req, res) => {
-
+afterWork = (req, conn) => {
+  //wsServer.sendTo('', conn, 'conf', req);
 }
 
-cpReq = (req, conn, cb) => {
-  console.log(`rcv:: req: ${req.req} pdu: ${JSON.stringify(req.pdu)}`);
+cpReq = (req, conn) => {
+  console.debug(`rcv:: req: ${req.req} pdu: ${JSON.stringify(req.pdu)}`);
   switch(String(req.req)) {
     case 'BootNotification':
       wsServer.storeSocket(req.pdu.connectorSerial, conn);
@@ -72,14 +68,15 @@ cpReq = (req, conn, cb) => {
       req.pdu.connectorSerial = '';
       req.pdu.transactionId = 0;
       break;
+    case 'ShowArray':
+      wsServer.showAllArray();
+      break;
   }
   wsServer.sendTo('', conn, 'conf', req);
-  cb();
 }
 
 
-cpConf = (req, conn, cb) => {
-  cb();
+cpConf = (req, conn) => {
 }
 
 module.exports = {

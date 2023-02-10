@@ -7,15 +7,28 @@ process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 client.on('connectFailed', function(error) {
   console.log('Connect Error' + error.toString());
 });
+function keyin() {
+  var target = process.argv[2];
+  var connser = process.argv[3];
 
-client.on('connect', (connection) => {
-  var connser = process.argv.slice(2);
-  var user = process.argv.slice(2);
-  console.log(`conn: ${connser} user:${user}`);
-  if (connser == '' || user == '') {
-    console.log('usage: wstest.js {connector} {user}');
+  if (target == '' || connser == '') {
+    console.log('usage: wstest.js {target} {connector} {user}');
     process.exit();
   }
+
+  if(target == 'local') {
+    client.connect('wss://127.0.0.1:3001/', 'hclab-protocol');
+  }
+  else {
+    client.connect('wss://54.163.188.194:3001/', 'hclab-protocol');
+  }
+}
+keyin();
+
+client.on('connect', (connection) => {
+  var connser = process.argv[3];
+  var user = process.argv[4];
+
   connection.send(`{"req":"BootNotification", "pdu":{"connectorSerial":"${connser}", "chargePointModel":"hcLab001"}}`);
   
   var stdin = process.openStdin();
@@ -46,6 +59,10 @@ client.on('connect', (connection) => {
       case 'meter\n':
         connection.send(`{"req": "MeterValues", "pdu": { "connectorId": 2, "connectorSerial": "${connser}", 
                         "meterValue": {"timeStamp": "${Date.now()}", "transactionId": 123, "sampledValue": {"value":383.2}}}}`);
+        break;
+      case 'show\n':
+        connection.send(`{"req":"ShowArray", "pdu":{"connectorSerial":"${connser}"}}`);
+        break;
     }
 
   });
@@ -69,5 +86,3 @@ client.on('connect', (connection) => {
 
 
 });
-
-client.connect('wss://127.0.0.1:3001/', 'hclab-protocol');

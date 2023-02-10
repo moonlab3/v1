@@ -14,13 +14,20 @@ getServer = function() {
   return wss;
 }
 
+showAllArray = function() {
+  console.log('registered clinets are below.')
+  socketArray.forEach((entry) => {
+    console.log(entry.id);
+  })
+}
+
 storeSocket = function(connectorSerial, connection) {
   var found = socketArray.find(({id}) => id == connectorSerial);
   if(!found || found.conn.socket.readyState > 1) {
     this.removeSocket(connectorSerial);
     var sock = { id: `${connectorSerial}`, conn: connection };
     socketArray.push(sock);
-    console.log(`pushed into websocket array: ${connection.remoteAddresses}`);
+    console.debug(`pushed into websocket array: ${connection.remoteAddresses}`);
   }
 }
 
@@ -33,7 +40,6 @@ removeSocket = function(connectorSerial) {
 
 }
 
-//sendTo = function(connectorSerial, connection, obj) {
 sendTo = function(connectorSerial, connection, type, obj) {
   var buffer = makeBuffer(type, obj);
   if(connectorSerial == '') {
@@ -46,7 +52,7 @@ sendTo = function(connectorSerial, connection, type, obj) {
       return true;
     }
     else {
-      console.log(`No such client. ${connectorSerial} needs rebooting.`);
+      console.warn(`No such client. ${connectorSerial} needs rebooting.`);
       return false;
     }
   }
@@ -84,7 +90,7 @@ makeBuffer = function(type, obj) {
     buffer += `"color": "${pdu.color}", `;
 
   buffer = buffer.slice(0, buffer.length - 2) + `}}`;
-  console.log('sending ' + buffer + 'length:' + buffer.length);
+  console.debug('sending ' + buffer + 'length:' + buffer.length);
   return buffer;
 }
 
@@ -93,5 +99,6 @@ module.exports = {
   getServer: getServer,
   storeSocket: storeSocket,
   removeSocket: removeSocket,
-  sendTo: sendTo
+  sendTo: sendTo,
+  showAllArray: showAllArray
 }

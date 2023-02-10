@@ -1,16 +1,15 @@
-read = (req, callback) => {
-    console.log('received: ' + JSON.stringify(req));
-    //setTimeout(sendrr, 100);
+get = (preQuery, callback) => {
+    //console.log('received: ' + JSON.stringify(req));
     var result = {"status": "ok", "data": {"id":"user001", "conn":"conn004"}};
-    console.log('reply: ' + result);
+    //console.log('reply: ' + result);
     callback(result);
 }
 
-write = (req, callback) => {
+post = (req, callback) => {
 
 }
 
-update = (req, callback) => {
+put = (req, callback) => {
 
 }
 
@@ -20,8 +19,8 @@ del= (req, callback) => {
 }
 
 module.exports = {
-  read: read,
-  write: write,
-  update: update,
+  get: get,
+  post: post,
+  put: put,
   del: del
 }
