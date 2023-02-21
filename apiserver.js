@@ -15,8 +15,11 @@ const cpRouter = require('./mw/cpRouter');
 app.use(express.json());
 app.use(express.urlencoded({ extended: false}));
 app.use('/hscan', hscanRouter);
-app.use('/user', userRouter);
-app.use('/cp', cpRouter);
+app.use('/v1/user', userRouter);
+app.use('/v1/cp', cpRouter);
+
+// wrong URL response
+
 
 const config = require('config');
 const apiserver = config.get('apiserver');

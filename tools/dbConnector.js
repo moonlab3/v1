@@ -6,7 +6,7 @@ init = function (dbms) {
     host: dbms.host,
     user: dbms.user,
     password: dbms.password,
-    schema: dbms.schema
+    database: dbms.database
   });
 
   dbConn.connect((err) => {
@@ -16,15 +16,20 @@ init = function (dbms) {
 }
 
 sendQuery = function(query) {
-  dbConn.query(query, (err, res) => {
-    if(err) {
-      console.error('db error with ' + err);
-      return null;
-    }
-    else {
-      console.debug('success with ' + res.length + 'records');
-    }
-    return res;
+  return new Promise((resolve, reject) => {
+    dbConn.query(query, (err, res) => {
+      if (err) {
+        console.error('db error with ' + err);
+        reject(null);
+        //return null;
+      }
+      else {
+        console.log('success with ' + res.length + 'records');
+        resolve(res);
+        //return res;
+      }
+    });
+
   });
 }
 

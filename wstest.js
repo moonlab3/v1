@@ -29,58 +29,60 @@ client.on('connect', (connection) => {
   var connser = process.argv[3];
   var user = process.argv[4];
 
-  connection.send(`{"req":"BootNotification", "pdu":{"connectorSerial":"${connser}", "chargePointModel":"hcLab001"}}`);
+  connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", "pdu":{"chargePointModel":"hcLab001"}}`);
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
-    if(input == 'quit\n') {
-      connection.close();
-      process.exit();
-    }
     switch (String(input)) {
       case 'auth\n':
-        connection.send(`{"req":"Authorize", "pdu":{"idTag":"${user}"}}`);
+        connection.send(`{"req":"Authorize", "connectorSerial": "${connser}", "pdu":{"idTag":"${user}"}}`);
         break;
       case 'heart\n':
-        connection.send(`{"req":"HeartBeat", "pdu":{"connectorSerial":"${connser}"}}`);
+        connection.send(`{"req":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
       case 'start\n':
-        connection.send(`{"req":"StartTransaction", "pdu":{"connectorId":3, "connectorSerial":"${connser}", 
+        connection.send(`{"req":"StartTransaction", "connectorSerial":"${connser}", "pdu":{"connectorId":3, 
                           "idTag":"${user}", "meterStart": 234, "timeStamp": ${Date.now()}, "bulkSoc": 234}}`);
         break;
       case 'stop\n':
-        connection.send(`{"req":"StopTransaction", "pdu":{"connectorSerial":"${connser}", "transactionId":9983, 
+        connection.send(`{"req":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId":9983, 
                           "meterStop":393, "timeStamp": ${Date.now()}, "reason": "whatever"}}`);
         break;
       case 'status\n':
-        connection.send(`{"req":"StatusNotification", "pdu":{"connectorId":2, "connectorSerial":"${connser}",
-                          "errorCode":"error001", "status":"Charging", "timeStamp": ${Date.now()}}}`);
+        connection.send(`{"req":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":2,
+                         "errorCode":"error001", "status":"Charging", "timeStamp": ${Date.now()}}}`);
         break;
       case 'meter\n':
-        connection.send(`{"req": "MeterValues", "pdu": { "connectorId": 2, "connectorSerial": "${connser}", 
+        connection.send(`{"req": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": 2, 
                         "meterValue": {"timeStamp": "${Date.now()}", "transactionId": 123, "sampledValue": {"value":383.2}}}}`);
         break;
       case 'show\n':
-        connection.send(`{"req":"ShowArray", "pdu":{"connectorSerial":"${connser}"}}`);
+        connection.send(`{"req":"ShowArray", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
+      case 'res\n':
+        connection.send(`{"conf":"RemoteWhatever", "connectorSerial":"${connser}", "pdu":{}}`);
+        break;
+      case 'quit\n':
+        connection.send(`{"req":"Quit", "connectorSerial":"${connser}", "pdu":{}}`);
+        process.exit();
     }
 
   });
   connection.on('message', (message) => {
     console.log('rcved: ' + JSON.stringify(message.utf8Data));
-    var pdu = JSON.parse(message.utf8Data).pdu;
-    if(pdu.idTagInfo)
-      console.log('idTagInfo: ' + JSON.stringify(pdu.idTagInfo));
-    if(pdu.connectorSerial)
-      console.log('connectorSerial: ' + JSON.stringify(pdu.connectorSerial));
-    if(pdu.status)
-      console.log('status: ' + JSON.stringify(pdu.status));
-    if(pdu.connectorId)
-      console.log('connectorId: ' + JSON.stringify(pdu.connectorId));
-    if(pdu.transactionId)
-      console.log('transactionId: ' + JSON.stringify(pdu.transactionId));
-    if(pdu.currentTime)
-      console.log('currentTime: ' + Date(pdu.currentTime));
+    var response = JSON.parse(message.utf8Data);
+    if(response.pdu.idTagInfo)
+      console.log('idTagInfo: ' + JSON.stringify(response.pdu.idTagInfo));
+    if(response.connectorSerial)
+      console.log('connectorSerial: ' + JSON.stringify(response.connectorSerial));
+    if(response.pdu.status)
+      console.log('status: ' + JSON.stringify(response.pdu.status));
+    if(response.pdu.connectorId)
+      console.log('connectorId: ' + JSON.stringify(response.pdu.connectorId));
+    if(response.pdu.transactionId)
+      console.log('transactionId: ' + JSON.stringify(response.pdu.transactionId));
+    if(response.pdu.currentTime)
+      console.log('currentTime: ' + Date(response.pdu.currentTime));
 
   });
 
