@@ -1,4 +1,5 @@
 var dbConn;
+var trxCount = 0, dbSpeedAvg = 0;
 
 init = function (dbms) {
   dbConn = require('mysql').createConnection({
@@ -15,25 +16,34 @@ init = function (dbms) {
   });
 }
 
-sendQuery = function(query) {
+submitSync = async (query) => {
   return new Promise((resolve, reject) => {
+    console.log('sql: ' + query);
+    var start = Date.now();
     dbConn.query(query, (err, res) => {
       if (err) {
-        console.error('db error with ' + err);
-        reject(null);
-        //return null;
+        console.log('DB error with ' + err);
+        reject(err);
       }
-      else {
-        console.log('success with ' + res.length + 'records');
-        resolve(res);
-        //return res;
-      }
+      var end = Date.now();
+      trxCount++;
+      dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
+      console.log(`success with ${res.length} records, fetched in ${end - start}ms. average: ${dbSpeedAvg}`);
+      resolve(res);
     });
-
   });
+}
+
+admin = function (query, auth) {
+  if(auth) {
+    console.log('admin mode: ' +  query);
+
+  }
+
 }
 
 module.exports = {
   init: init,
-  sendQuery: sendQuery
+  submitSync: submitSync,
+  admin: admin
 }

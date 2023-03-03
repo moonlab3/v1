@@ -20,7 +20,7 @@ function keyin() {
     client.connect('wss://127.0.0.1:3001/', 'hclab-protocol');
   }
   else {
-    client.connect('wss://54.163.188.194:3001/', 'hclab-protocol');
+    client.connect('wss://34.207.158.106:3001/', 'hclab-protocol');
   }
 }
 keyin();
@@ -29,7 +29,8 @@ client.on('connect', (connection) => {
   var connser = process.argv[3];
   var user = process.argv[4];
 
-  connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", "pdu":{"chargePointModel":"hcLab001"}}`);
+  connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", 
+        "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "test"}}`);
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
