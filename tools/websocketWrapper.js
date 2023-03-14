@@ -72,12 +72,12 @@ removeConnection = function(connectorSerial) {
 send = function(connectorSerial, connection, data) {
     
   if(connectorSerial == '') {
-    connection.send(ocppHandler.format('conf', data));
+    connection.send(ocppHandler.makeMessage('conf', data));
   }
   else {
     var found = socketArray.find(({ id }) => id == connectorSerial);
     if (found) {
-      found.conn.send(ocppHandler.format('conf', data));
+      found.conn.send(ocppHandler.makeMessage('conf', data));
       return true;
     }
     else {
@@ -85,12 +85,11 @@ send = function(connectorSerial, connection, data) {
       return false;
     }
   }
-
 }
 
 sendAndReceive = function(connectorSerial, data) {
   return new Promise((resolve, reject) => {
-    send(connectorSerial, null, ocppHandler.format('req', data));
+    send(connectorSerial, null, ocppHandler.makeMessage('req', data));
     enlistCallback(connectorSerial, (result) => {
       //console.log('response received::::' + JSON.stringify(result));
       delistCallback(connectorSerial);

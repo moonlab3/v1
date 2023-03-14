@@ -3,11 +3,17 @@ const connCP = require('../tools/websocketWrapper');
 var waitingJobs = 0;
 //const HTTPParser = require('http-parser-js');
 
-hscanGet = async (req, res, next) => {
+hscanNotLoggedIn = async (req, res, next) => {
+  ///////////////////////////////////////////////////
+  // will be deprecated
+  // 
+}
+
+hscanLoggedIn = async (req, res, next) => {
   console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
 
   waitingJobs++;
-  var cwjy = {action: 'fetch', condition: 'value', type: 'http', req: req.params};
+  var cwjy = {action: 'fetch', condition: 'value', type: 'http', queryObj: req.params};
   var result = await connDBServer.sendAndReceive('single', cwjy);
 
   res.writeHead(200);
@@ -18,31 +24,39 @@ hscanGet = async (req, res, next) => {
   }
   res.end();
   waitingJobs--;
-  /*
-  sockDBServer.emit('single', cwjy, (result) => {
-    res.writeHead(200);
-    for(var i = 0; i < result.length; i++) {
-      for(var key in result[i]) {
-        res.write(`key: ${key} value: ${result[i][key]}`);
-      }
-    }
-    res.end();
-  });
-  */
-
   next();
 }
 
-hscanPut = async (req, res, next) => {
+hscanAction = async (req, res, next) => {
   waitingJobs++;
-  var reqToCP = {req: req.params.action, connectorSerial: req.params.connectorSerial, pdu: {idTag: req.params.userId}};
+  var reqToCP = {req: req.params.action, connectorSerial: req.params.connectorSerial, 
+                pdu: {idTag: req.params.userId}};
   var cwjy, result;
   switch (req.params.action) {
     case 'Charge':
+      ////////////////////////////////////////////
+      // todo
+      // ask if it's ok to start charge.
+      cwjy = { action: 'StartCharging', condition: 'ok', type: 'http', 
+              value: req.params.userId, queryObj: req.params };
+      result = await connDBServer.sendAndReceive('single', cwjy);
+      if(result == 'Rejected') {
+        //res.writeHead(200);
+        waitingJobs--;
+        res.json({userId: req.params.userId, responseCode: "Fail", results: 
+                  {connectors:[{connectorSerial: req.params.connectorSerial, status:'' }]}});
+        //res.end();
+      }
+
       result = await connCP.sendAndReceive(req.params.userId, reqToCP);
       if (result == 'ok') {
-        cwjy = { action: 'update', condition: '', type: 'http', req: req.params };
+        cwjy = { action: 'update', condition: '', type: 'http', queryObj: req.params };
         result = await connDBServer.sendAndReceive('single', cwjy);
+      }
+      else {
+        //////////////////////////////////////
+        // todo
+        // reesponse: error because of the connector's malfunction
       }
 
       break;
@@ -56,10 +70,9 @@ hscanPut = async (req, res, next) => {
       break;
   }
 
-  res.writeHead(200);
-  res.write(JSON.stringify(result));
-  res.end();
+  //res.writeHead(200);
   waitingJobs--;
+  res.json(result);
 }
 
 cpGet = (req, res, next) => {
@@ -88,63 +101,82 @@ wsReq = async (req, conn) => {
     case 'BootNotification':
       connCP.storeConnection(req.connectorSerial, conn);
       conf.pdu = {currentTime: Date.now(), interval: 300};
-      cwjy = { action: "compare", type: "ocpp", condition: "have", value: req.connectorSerial, queryObj: req };
+      cwjy = { action: "BootNotification", type: "ocpp", condition: "have", value: req.connectorSerial, queryObj: req };
       conf.pdu.status = await connDBServer.sendAndReceive('single', cwjy);
-      /*
-      for (var index in result) {
-        if (result[index].connectorSerial == req.connectorSerial) {
-          conf.pdu.status = "Accepted";
-          break;
-        }
-      }
-      if (!conf.pdu.status) {
-        conf.pdu.status = "Rejected";
-      }
-      */
       break;
     case 'HeartBeat':
       connCP.storeConnection(req.connectorSerial, conn);
       req.pdu.currentTime = Date.now();
       cwjy = { action: "update", type: "ocpp", condition: "", value: "", queryObj: req };
       connDBServer.send(cwjy);
-      
-      //////////////////////////////////////////
-      //////////////////////////////////////////  think
-      //////////////////////////// 
       conf.pdu = {currentTime: Date.now()};
       break;
     case 'StatusNotification':
       cwjy = { action: "update", type: "ocpp", condition: "", value: "", queryObj: req };
       connDBServer.send(cwjy);
       break;
+    case 'MeterValues':
+      break;
+    case 'StartTransaction':
+      ///////////////////////////////
+      // for RFID 
+      break;
+    case 'StopTransaction':
+      break;
     case 'ShowArray':
+      /////////////////////////////////////
+      // for test only
       connCP.showAllConnections('ws call');
       break;
     case 'Quit':
+      /////////////////////////////////////
+      // for test only
       connCP.removeConnection(req.connectorSerial);
       return;
   }
-
   connCP.send(req.connectorSerial, conn, conf);
-  /*
-  var conf = {req: req.req, connectorSerial: req.connectorSerial, 
-          pdu: {currentTime: Date.now(), interval: 300}};
-
-  var cwjy = { action: "fetch", type: "ocpp", condition: "ok", queryObj: req };
-  */
-  
 }
 
 wsConf = (req, conn) => {
+  ///////////////////////////////////////////
+  // will be deprecated.
+  // sendAndReceive takes care of confirmation return
 }
 
 hostGet = (req, res) => {
 
 }
 
+userHistory = async (req, res) => {
+  //console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
+
+  waitingJobs++;
+  var cwjy = {action: 'fetch', condition: 'value', type: 'http', queryObj: req.params};
+  var result = await connDBServer.sendAndReceive('single', cwjy);
+
+  res.writeHead(200);
+  for (var i = 0; i < result.length; i++) {
+    for (var key in result[i]) {
+      res.write(`key: ${key} value: ${result[i][key]}`);
+    }
+  }
+  res.end();
+  waitingJobs--;
+
+}
+
+userStatus = (req, res) => {
+}
+
+userFavo = (req, res) => {
+}
 module.exports = {
-  hscanGet: hscanGet,
-  hscanPut: hscanPut,
+  hscanNotLoggedIn: hscanNotLoggedIn,
+  hscanLoggedIn: hscanLoggedIn,
+  hscanAction: hscanAction,
+  userHistory: userHistory,
+  userStatus: userStatus,
+  userFavo: userFavo,
   cpGet: cpGet,
   cpPut: cpPut,
   wsReq: wsReq,
@@ -152,4 +184,14 @@ module.exports = {
   hostGet: hostGet,
   afterWork: afterWork
 };
+
+///////////////////////////////////////////
+// fetch booking occupying end
+// fetch charging occupying end
+// LED change for booked connector
+// send angry birds
+// cancel charging
+// fetch charging status
+// fetch charpoint information
+// fetch chargepoint list
 

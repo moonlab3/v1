@@ -1,4 +1,4 @@
-req = (req) => {
+makeQuery = (req) => {
   var query;
   switch(req.req) {
     case 'BootNotification':
@@ -27,18 +27,27 @@ req = (req) => {
                           */
       break;
     case 'StatusNotification':
-      query= `UPDATE connector SET status = '${req.status}' 
+      query= `UPDATE connector SET status = '${req.pdu.status}' 
                   WHERE connectorSerial = '${req.connectorSerial}'`;
       break;
     case 'StopTransaction':
       query= `SELECT COUNT(*) FROM connector 
                   WHERE connectorSerial = '${req.connectorSerial}'`;
       break;
+    case 'RemoteStartTransaction':
+      query = `UPDATE connector SET status = 'charging' WHERE connectorSerial = '${req.connectorSerial}`;
+      break;
+    case 'RemoteStopTransaction':
+      query = `UPDATE connector SET status = 'charging' WHERE connectorSerial = '${req.connectorSerial}`;
+      break;
   }
   return query;
 }
 
 conf = (req) => {
+  //////////////////////////////////////
+  ////////////////////////////////////
+  // deprecate?
   var query;
   switch(req.req) {
     case 'ChangeAvailability':
@@ -60,7 +69,7 @@ conf = (req) => {
 
 }
 
-format = (type, obj) => {
+makeMessage = (type, obj) => {
   var buffer = `{"${type}": "${obj.req}", "connectorSerial": "${obj.connectorSerial}", "pdu": {  `;
   var pdu = obj.pdu;
   if(pdu.idTagInfo)
@@ -94,7 +103,7 @@ format = (type, obj) => {
 }
 
 module.exports = {
-  req: req,
+  makeQuery: makeQuery,
   conf: conf,
-  format: format
+  makeMessage: makeMessage
 }

@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 
 const server = require('http').createServer(app);
-const socktoApiServer = require('socket.io')(server);
+const io = require('socket.io')(server);
 
 const config = require('config');
 const dbServer = config.get('dbserver');
@@ -12,9 +12,10 @@ const controller = require('./mw/logics');
 const connector = require('./tools/dbConnector');
 //const mailer = require('./tools/mail');
 
-socktoApiServer.on('connection', (socket) => {
+io.on('connection', (socket) => {
   console.log(`API server connected. ${new Date(Date.now())}`);
   
+  socket.onAny(controller.preProcess);
   socket.on('single', controller.single);
   socket.on('singleSync', controller.singleSync);
   socket.on('multiple', controller.multiple);

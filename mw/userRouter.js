@@ -4,18 +4,22 @@ const controller = require('./apiController');
 
 /*
 router.get('/login/:userId', controller.hscanPut, controller.afterWork);      // for Test
-//router.put('/signup', controller.hscanPut, controller.afterWork);      // for Test
+router.put('/signup', controller.hscanPut, controller.afterWork);      // for Test
 router.put('/card/:userId', controller.hscanPut, controller.afterWork);
-router.get('/favorite/:userId', controller.hscanGet);
-router.put('/favorite/:userId/cp/:cpName', controller.hscanPut);
-router.put('/favorite/:userId/cp/:cpId', controller.hscanPut);
-
-router.get('/status/:userId', controller.hscanGet);
-router.get('/history/:userId', controller.hscanGet);
 */
 
+router.get('/:userId/status', controller.userStatus);
+router.get('/:userId/history', controller.userHistory);
 
-router.get('/login/:userId', controller.hscanPut, controller.afterWork);      // for Test
-router.put('/signup', controller.cpGet);
+router.get('/:userId/favorite', controller.userFavo);
+
+//////////////////////////////////////////
+// name or id. choose one
+// both?
+//router.get('/:userId/favorite/cp/:cpName', controller.userFavo);
+//router.put('/:userId/favorite/cp/:cpName', controller.userFavo);
+
+//router.get('/:userId/favorite/cp/:cpId', controller.userFavo);
+//router.put('/:userId/favorite/cp/:cpId', controller.userFavo);
 
 module.exports = router;
