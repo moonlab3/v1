@@ -16,9 +16,8 @@ io.on('connection', (socket) => {
   console.log(`API server connected. ${new Date(Date.now())}`);
   
   socket.onAny(controller.preProcess);
-  socket.on('single', controller.single);
-  socket.on('singleSync', controller.singleSync);
-  socket.on('multiple', controller.multiple);
+  socket.on('withReturn', controller.withReturn);
+  socket.on('noReturn', controller.noReturn);
 
 });
 

@@ -2,19 +2,19 @@ const config = require('config');
 const dbserver = config.get('dbserver');
 const io = require('socket.io-client')(`http://${dbserver.host}:${dbserver.port}`);
 
-send = (msg) => {
-  io.emit('singleSync', msg);
+sendOnly= (msg) => {
+  io.emit('noReturn', msg);
 }
 
-sendAndReceive = (event, msg) => {
+sendAndReceive = (msg) => {
   return new Promise((resolve, reject) => {
-    io.emit(event, msg, (result) => {
+    io.emit('withReturn', msg, (result) => {
       resolve(result);
     });
   });
 }
 
 module.exports = {
-  send: send,
+  sendOnly: sendOnly,
   sendAndReceive: sendAndReceive
 }

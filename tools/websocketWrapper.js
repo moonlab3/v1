@@ -69,15 +69,15 @@ removeConnection = function(connectorSerial) {
 
 }
 
-send = function(connectorSerial, connection, data) {
+sendTo = function(connectorSerial, connection, type, data) {
     
   if(connectorSerial == '') {
-    connection.send(ocppHandler.makeMessage('conf', data));
+    connection.send(ocppHandler.makeMessage(type, data));
   }
   else {
     var found = socketArray.find(({ id }) => id == connectorSerial);
     if (found) {
-      found.conn.send(ocppHandler.makeMessage('conf', data));
+      found.conn.send(ocppHandler.makeMessage(type, data));
       return true;
     }
     else {
@@ -88,10 +88,11 @@ send = function(connectorSerial, connection, data) {
 }
 
 sendAndReceive = function(connectorSerial, data) {
+  console.log('sendAndReceive:::: ' + JSON.stringify(data));
+  sendTo(connectorSerial, null, 'req', data);
   return new Promise((resolve, reject) => {
-    send(connectorSerial, null, ocppHandler.makeMessage('req', data));
     enlistCallback(connectorSerial, (result) => {
-      //console.log('response received::::' + JSON.stringify(result));
+      console.log('sendAndReceive received::::' + JSON.stringify(result));
       delistCallback(connectorSerial);
       resolve(result);
     });
@@ -107,6 +108,7 @@ returnCallback = function(connectorSerial, param1, param2) {
     var found = callbackArray.find(({ id }) => id == connectorSerial);
     if(!found) {
       console.log('returncallback weve got problem.');
+      return;
     }
     if(param2) {
       found.callback(param1, param2);
@@ -134,7 +136,7 @@ module.exports = {
   getServer: getServer,
   storeConnection: storeConnection,
   removeConnection: removeConnection,
-  send: send,
+  sendTo: sendTo,
   sendAndReceive: sendAndReceive,
   enlistCallback: enlistCallback,
   delistCallback: delistCallback,

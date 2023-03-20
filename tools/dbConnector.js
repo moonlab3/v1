@@ -17,6 +17,8 @@ init = function (dbms) {
 }
 
 submitSync = async (query) => {
+  if(!query)
+    return null;
   return new Promise((resolve, reject) => {
     console.log('sql: ' + query);
     var start = Date.now();
@@ -29,6 +31,7 @@ submitSync = async (query) => {
       trxCount++;
       dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
       console.log(`success with ${res.length} records, fetched in ${end - start}ms. average: ${dbSpeedAvg}`);
+      console.log(res);
       resolve(res);
     });
   });

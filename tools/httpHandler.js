@@ -1,10 +1,14 @@
 
-makeQuery = (req) => {
+makeQuery = (cwjy) => {
   var query;
-  switch (req.action) {
-    case 'Charge':
+  switch (cwjy.action) {
+    case 'ConnectorCheck':
       query = `SELECT status, occupyingUserId, occupyingEnd FROM connector 
-              WHERE connectorSerial = '${req.connectorSerial}'`;
+              WHERE connectorSerial = '${cwjy.queryObj.connectorSerial}'`;
+      break;
+    case 'Charge':
+      query = `UPDATE connector SET status = 'charging'
+              WHERE connectorSerial = '${cwjy.queryObj.connectorSerial}'`;
       break;
     case 'Reserve':
       break;

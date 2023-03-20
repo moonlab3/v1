@@ -12,9 +12,14 @@ hscanNotLoggedIn = async (req, res, next) => {
 hscanLoggedIn = async (req, res, next) => {
   console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
 
+///////////////////////////////////////////
+// fetch booking occupying end
+// fetch charging occupying end
+// fetch charging status
   waitingJobs++;
   var cwjy = {action: 'fetch', condition: 'value', type: 'http', queryObj: req.params};
-  var result = await connDBServer.sendAndReceive('single', cwjy);
+  //var result = await connDBServer.sendAndReceive('get', cwjy);
+  var result = await connDBServer.sendAndReceive(cwjy);
 
   res.writeHead(200);
   for (var i = 0; i < result.length; i++) {
@@ -29,36 +34,43 @@ hscanLoggedIn = async (req, res, next) => {
 
 hscanAction = async (req, res, next) => {
   waitingJobs++;
-  var reqToCP = {req: req.params.action, connectorSerial: req.params.connectorSerial, 
-                pdu: {idTag: req.params.userId}};
+  var reqToCP = {connectorSerial: req.params.connectorSerial, pdu: {idTag: req.params.userId}};
   var cwjy, result;
-  switch (req.params.action) {
-    case 'Charge':
       ////////////////////////////////////////////
       // todo
-      // ask if it's ok to start charge.
-      cwjy = { action: 'StartCharging', condition: 'ok', type: 'http', 
+      // LED change for booked connector
+      // send angry birds
+      // cancel charging
+  switch (req.params.action) {
+    case 'Charge':
+      cwjy = { action: 'ConnectorCheck', condition: 'ok', type: 'http', 
               value: req.params.userId, queryObj: req.params };
-      result = await connDBServer.sendAndReceive('single', cwjy);
+      result = await connDBServer.sendAndReceive(cwjy);
       if(result == 'Rejected') {
-        //res.writeHead(200);
         waitingJobs--;
-        res.json({userId: req.params.userId, responseCode: "Fail", results: 
+        res.json({userId: req.params.userId, responseCode: "Rejected", results: 
                   {connectors:[{connectorSerial: req.params.connectorSerial, status:'' }]}});
-        //res.end();
+        return;
       }
 
-      result = await connCP.sendAndReceive(req.params.userId, reqToCP);
-      if (result == 'ok') {
-        cwjy = { action: 'update', condition: '', type: 'http', queryObj: req.params };
-        result = await connDBServer.sendAndReceive('single', cwjy);
+      reqToCP.req = 'RemoteStartTransaction';
+      //console.log('request to chargepoint: ' + JSON.stringify(reqToCP));
+      result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
+      console.log(result);
+      if (result.pdu.status == 'Accepted') {
+        cwjy = { action: 'Charge', condition: '', type: 'http', queryObj: req.params };
+        connDBServer.sendOnly(cwjy);
+        console.log('charging accepted');
       }
       else {
-        //////////////////////////////////////
-        // todo
-        // reesponse: error because of the connector's malfunction
+        console.log('charging rejected');
       }
+      res.json({userId: req.params.userId, responseCode: result.pdu.status,
+                result: {connectorSerial: req.params.connectorSerial, status: 'hohoho'}});
 
+      /////////////////////////////////////////
+      // todo
+      // occupyingEnd time calculation
       break;
     case 'Reserve':
       break;
@@ -72,12 +84,14 @@ hscanAction = async (req, res, next) => {
 
   //res.writeHead(200);
   waitingJobs--;
-  res.json(result);
+  //res.json(result);
 }
 
 cpGet = (req, res, next) => {
   // show all connectors of the chargePoint
   // todo : add tables
+  // fetch chargepoint information
+  // fetch chargepoint list
   waitingJobs++;
   res.writeHead(200);
   res.write('heheh');
@@ -90,7 +104,6 @@ cpPut = (req, res, next) => {
 }
 
 afterWork = (req, conn) => {
-  //connCP.send('', conn, req);
 }
 
 wsReq = async (req, conn) => {
@@ -101,27 +114,33 @@ wsReq = async (req, conn) => {
     case 'BootNotification':
       connCP.storeConnection(req.connectorSerial, conn);
       conf.pdu = {currentTime: Date.now(), interval: 300};
-      cwjy = { action: "BootNotification", type: "ocpp", condition: "have", value: req.connectorSerial, queryObj: req };
-      conf.pdu.status = await connDBServer.sendAndReceive('single', cwjy);
+      cwjy = { action: "BootNotification", type: "ocpp", condition: req.connectorSerial, queryObj: req };
+      conf.pdu.status = await connDBServer.sendAndReceive(cwjy);
       break;
     case 'HeartBeat':
       connCP.storeConnection(req.connectorSerial, conn);
       req.pdu.currentTime = Date.now();
       cwjy = { action: "update", type: "ocpp", condition: "", value: "", queryObj: req };
-      connDBServer.send(cwjy);
+      connDBServer.sendOnly(cwjy);
       conf.pdu = {currentTime: Date.now()};
       break;
     case 'StatusNotification':
       cwjy = { action: "update", type: "ocpp", condition: "", value: "", queryObj: req };
-      connDBServer.send(cwjy);
+      connDBServer.sendOnly(cwjy);
       break;
     case 'MeterValues':
       break;
+    case 'Autorize':
+      cwjy = { action: "get", type: "ocpp", condition: "", value: "", queryObj: req };
+      break;
     case 'StartTransaction':
+      cwjy = { action: "StartCharging", type: "ocpp", condition: "", value: "", queryObj: req };
+      conf.pdu.status = await connDBServer.sendAndReceive(cwjy);
       ///////////////////////////////
       // for RFID 
       break;
     case 'StopTransaction':
+      cwjy = { action: "update", type: "ocpp", queryObj: req };
       break;
     case 'ShowArray':
       /////////////////////////////////////
@@ -134,7 +153,7 @@ wsReq = async (req, conn) => {
       connCP.removeConnection(req.connectorSerial);
       return;
   }
-  connCP.send(req.connectorSerial, conn, conf);
+  connCP.sendTo(req.connectorSerial, conn, 'conf', conf);
 }
 
 wsConf = (req, conn) => {
@@ -152,7 +171,7 @@ userHistory = async (req, res) => {
 
   waitingJobs++;
   var cwjy = {action: 'fetch', condition: 'value', type: 'http', queryObj: req.params};
-  var result = await connDBServer.sendAndReceive('single', cwjy);
+  var result = await connDBServer.sendAndReceive(cwjy);
 
   res.writeHead(200);
   for (var i = 0; i < result.length; i++) {
@@ -185,13 +204,4 @@ module.exports = {
   afterWork: afterWork
 };
 
-///////////////////////////////////////////
-// fetch booking occupying end
-// fetch charging occupying end
-// LED change for booked connector
-// send angry birds
-// cancel charging
-// fetch charging status
-// fetch charpoint information
-// fetch chargepoint list
 

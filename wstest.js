@@ -19,9 +19,11 @@ function keyin() {
   if(target == 'local') {
     client.connect('wss://127.0.0.1:3001/', 'hclab-protocol');
   }
-  else {
+  else if(target == 'aws') {
     client.connect('wss://34.207.158.106:3001/', 'hclab-protocol');
   }
+  else 
+    client.connect('wss://10.20.20.28:3001/', 'hclab-protocol');
 }
 keyin();
 
@@ -30,7 +32,7 @@ client.on('connect', (connection) => {
   var user = process.argv[4];
 
   connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", 
-        "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "test"}}`);
+        "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "test", "chargePointId": 3333}}`);
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
@@ -51,7 +53,7 @@ client.on('connect', (connection) => {
         break;
       case 'status\n':
         connection.send(`{"req":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":2,
-                         "errorCode":"error001", "status":"Charging", "timeStamp": ${Date.now()}}}`);
+                         "errorCode":"error001", "status":"Reserved", "timeStamp": ${Date.now()}}}`);
         break;
       case 'meter\n':
         connection.send(`{"req": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": 2, 
@@ -63,6 +65,12 @@ client.on('connect', (connection) => {
       case 'res\n':
         connection.send(`{"conf":"RemoteWhatever", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
+      case 'accept\n':
+        connection.send(`{"conf":"RemoteStartTransaction", "connectorSerial":"${connser}", "pdu":{"status":"Accepted"}}`);
+        break;
+      case 'reject\n':
+        connection.send(`{"conf":"RemoteStartTransaction", "connectorSerial":"${connser}", "pdu":{"status":"Rejected"}}`);
+        break;
       case 'quit\n':
         connection.send(`{"req":"Quit", "connectorSerial":"${connser}", "pdu":{}}`);
         process.exit();
@@ -72,17 +80,17 @@ client.on('connect', (connection) => {
   connection.on('message', (message) => {
     console.log('rcved: ' + JSON.stringify(message.utf8Data));
     var response = JSON.parse(message.utf8Data);
-    if(response.pdu.idTagInfo)
+    if(response.pdu?.idTagInfo)
       console.log('idTagInfo: ' + JSON.stringify(response.pdu.idTagInfo));
-    if(response.connectorSerial)
+    if(response?.connectorSerial)
       console.log('connectorSerial: ' + JSON.stringify(response.connectorSerial));
-    if(response.pdu.status)
+    if(response.pdu?.status)
       console.log('status: ' + JSON.stringify(response.pdu.status));
-    if(response.pdu.connectorId)
+    if(response.pdu?.connectorId)
       console.log('connectorId: ' + JSON.stringify(response.pdu.connectorId));
-    if(response.pdu.transactionId)
+    if(response.pdu?.transactionId)
       console.log('transactionId: ' + JSON.stringify(response.pdu.transactionId));
-    if(response.pdu.currentTime)
+    if(response.pdu?.currentTime)
       console.log('currentTime: ' + Date(response.pdu.currentTime));
 
   });

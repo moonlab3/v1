@@ -1,8 +1,9 @@
-makeQuery = (req) => {
+makeQuery = (cwjy) => {
   var query;
+  var req = cwjy.queryObj;
   switch(req.req) {
     case 'BootNotification':
-      query= `SELECT connectorSerial AS compare FROM connector JOIN chargepoint ON connector.chargePointId = chargepoint.chargePointId 
+      query= `SELECT connectorSerial FROM connector JOIN chargepoint ON connector.chargePointId = ${req.pdu.chargePointId}
                   WHERE vendor = '${req.pdu.chargePointVendor}' AND model = '${req.pdu.chargePointModel}'`;
       break;
     case 'Authorize':
@@ -18,13 +19,6 @@ makeQuery = (req) => {
     case 'StartTransaction':
       query= `SELECT COUNT(*) FROM connector 
                   WHERE connectorSerial = '${req.connectorSerial}'`;
-      /*
-      queryObj = {todo: "get", condition: '1 result', next: true,
-                  query: `SELECT chargepointId FROM connector WHERE connectorId = '${req.connectorSerial}'`},
-                  {todo: "post", condition: 'ok', next: false,
-                  query: `INSERT INTO bill (started, chargePointId, connectorSerial, ownerId, userId)
-                          value: (CURRENT_TIMESTAMP, chargePointId, connectorSerial, ownerId, userId)`}];
-                          */
       break;
     case 'StatusNotification':
       query= `UPDATE connector SET status = '${req.pdu.status}' 
@@ -72,33 +66,33 @@ conf = (req) => {
 makeMessage = (type, obj) => {
   var buffer = `{"${type}": "${obj.req}", "connectorSerial": "${obj.connectorSerial}", "pdu": {  `;
   var pdu = obj.pdu;
-  if(pdu.idTagInfo)
+  if(pdu?.idTagInfo)
     buffer += `"idTagInfo": {"status": "${pdu.idTagInfo.status}"}, `;
-  if(pdu.status)
+  if(pdu?.status)
     buffer += `"status": "${pdu.status}", `;
-  if(pdu.connectorId)
+  if(pdu?.connectorId)
     buffer += `"connectorId": "${pdu.connectorId}", `;
-  if(pdu.currentTime)
+  if(pdu?.currentTime)
     buffer += `"currentTime": ${pdu.currentTime}, `;
-  if(pdu.interval)
+  if(pdu?.interval)
     buffer += `"interval": ${pdu.interval}, `;
-  if(pdu.transactionId)
+  if(pdu?.transactionId)
     buffer += `"transactionId": ${pdu.transactionId}, `;
-  if(pdu.type)
+  if(pdu?.type)
     buffer += `"type": "${pdu.type}", `;
-  if(pdu.key)
+  if(pdu?.key)
     buffer += `"key": "${pdu.key}", `;
-  if(pdu.value)
+  if(pdu?.value)
     buffer += `"value": "${pdu.value}", `;
-  if(pdu.vendorId)
+  if(pdu?.vendorId)
     buffer += `"vendorId": "${pdu.vendorId}", `;
-  if(pdu.data)
+  if(pdu?.data)
     buffer += `"data": "${pdu.data}", `;
-  if(pdu.color)
+  if(pdu?.color)
     buffer += `"color": "${pdu.color}", `;
 
   buffer = buffer.slice(0, buffer.length - 2) + `}}`;
-  //console.debug('sending ' + buffer + 'length:' + buffer.length);
+  console.debug('sending ' + buffer + 'length:' + buffer.length);
   return buffer;
 }
 
