@@ -1,5 +1,5 @@
 // websocket server with OCPP 1.6 protocol
-const ocppHandler = require('./ocppHandler');
+const messageHandler = require('./messageHandler');
 
 const WebSocketServer = require('websocket').server;
 var wss;
@@ -72,12 +72,12 @@ removeConnection = function(connectorSerial) {
 sendTo = function(connectorSerial, connection, type, data) {
     
   if(connectorSerial == '') {
-    connection.send(ocppHandler.makeMessage(type, data));
+    connection.send(messageHandler.makeMessage(type, data));
   }
   else {
     var found = socketArray.find(({ id }) => id == connectorSerial);
     if (found) {
-      found.conn.send(ocppHandler.makeMessage(type, data));
+      found.conn.send(messageHandler.makeMessage(type, data));
       return true;
     }
     else {

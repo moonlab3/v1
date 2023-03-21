@@ -1,6 +1,5 @@
 const dbConnector = require('../tools/dbConnector');
-const ocppHandler = require('../tools/ocppHandler');
-const httpHandler = require('../tools/httpHandler');
+const messageHandler = require('../tools/messageHandler');
 var dbSpeedAvg = 0, trxCount = 0;
 
 preProcess = (event, cwjy, callback) => {
@@ -12,15 +11,7 @@ showPerformance = () => {
   console.log(`transactions: ${trxCount}, average processing time(ms): ${dbSpeedAvg}`);
 }
 noReturn = (cwjy) => {
-  var query;
-  switch (cwjy.type) {
-    case 'http':
-      query = httpHandler.makeQuery(cwjy);
-      break;
-    case 'ocpp':
-      query = ocppHandler.makeQuery(cwjy);
-      break;
-  }
+  var query = messageHandler.makeQuery(cwjy);
   var result = dbConnector.submitSync(query);
 
   console.log('noreturn result: ' + JSON.stringify(result) );
@@ -29,15 +20,9 @@ noReturn = (cwjy) => {
 withReturn = async (cwjy, callback) => {
   // cwjy handling
   // cwjy handling
-  var query, returnValue;
-  switch (cwjy.type) {
-    case 'http':
-      query = httpHandler.makeQuery(cwjy);
-      break;
-    case 'ocpp':
-      query = ocppHandler.makeQuery(cwjy);
-      break;
-  }
+  var returnValue;
+  var query = messageHandler.makeQuery(cwjy);
+
   var result = await dbConnector.submitSync(query);
       ////////////////////////////
       // todo
@@ -45,6 +30,9 @@ withReturn = async (cwjy, callback) => {
       // 1. check the status of the connector
       // 2. on available, start charge. on booked, check the userid for booking.
   switch (cwjy.action) {
+    case 'ConnectorInformation':
+      returnValue = result[0];
+      break;
     case 'ConnectorCheck':
       if(result[0].status == 'available')
         returnValue = 'Accepted';

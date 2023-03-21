@@ -10,24 +10,28 @@ hscanNotLoggedIn = async (req, res, next) => {
 }
 
 hscanLoggedIn = async (req, res, next) => {
-  console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
+  //console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
 
 ///////////////////////////////////////////
 // fetch booking occupying end
 // fetch charging occupying end
 // fetch charging status
   waitingJobs++;
-  var cwjy = {action: 'fetch', condition: 'value', type: 'http', queryObj: req.params};
+  var cwjy = {action: 'ConnectorInformation', condition: 'value', type: 'http', queryObj: req.params};
   //var result = await connDBServer.sendAndReceive('get', cwjy);
   var result = await connDBServer.sendAndReceive(cwjy);
 
-  res.writeHead(200);
+  //res.writeHead(200);
+  res.json(result);
+  /*
   for (var i = 0; i < result.length; i++) {
     for (var key in result[i]) {
-      res.write(`key: ${key} value: ${result[i][key]}`);
+      res.write(`${result[i]}`);
     }
   }
+  */
   res.end();
+  console.log(result);
   waitingJobs--;
   next();
 }

@@ -7,6 +7,7 @@ process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 client.on('connectFailed', function(error) {
   console.log('Connect Error' + error.toString());
 });
+
 function keyin() {
   var target = process.argv[2];
   var connser = process.argv[3];
@@ -28,11 +29,13 @@ function keyin() {
 keyin();
 
 client.on('connect', (connection) => {
+  var repeatCount = 0;
   var connser = process.argv[3];
   var user = process.argv[4];
 
   connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", 
-        "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "test", "chargePointId": 3333}}`);
+        "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "test", "chargePointId": 1111}}`);
+        //////////////////////////////////////////////////////////////////////////////// check cpID and connectorSerial
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
@@ -71,12 +74,25 @@ client.on('connect', (connection) => {
       case 'reject\n':
         connection.send(`{"conf":"RemoteStartTransaction", "connectorSerial":"${connser}", "pdu":{"status":"Rejected"}}`);
         break;
+      case 'repeat\n':
+        repeatCount = 0;
+        repeat();
+        break;
       case 'quit\n':
         connection.send(`{"req":"Quit", "connectorSerial":"${connser}", "pdu":{}}`);
         process.exit();
     }
 
+    function repeat() {
+      if (repeatCount < 10)
+        setTimeout(repeat, 1000);
+      connection.send(`{"req":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
+      repeatCount++;
+    }
+
   });
+
+
   connection.on('message', (message) => {
     console.log('rcved: ' + JSON.stringify(message.utf8Data));
     var response = JSON.parse(message.utf8Data);
