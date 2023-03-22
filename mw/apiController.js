@@ -47,8 +47,7 @@ hscanAction = async (req, res, next) => {
       // cancel charging
   switch (req.params.action) {
     case 'Charge':
-      cwjy = { action: 'ConnectorCheck', condition: 'ok', type: 'http', 
-              value: req.params.userId, queryObj: req.params };
+      cwjy = { action: 'ConnectorCheck', user: req.params.userId, connector: req.params.connectorSerial };
       result = await connDBServer.sendAndReceive(cwjy);
       if(result == 'Rejected') {
         waitingJobs--;
@@ -62,7 +61,7 @@ hscanAction = async (req, res, next) => {
       result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
       console.log(result);
       if (result.pdu.status == 'Accepted') {
-        cwjy = { action: 'Charge', condition: '', type: 'http', queryObj: req.params };
+        cwjy = { action: 'Charge', user:req.params.userId, connector: req.params.connectorSerial };
         connDBServer.sendOnly(cwjy);
         console.log('charging accepted');
       }
@@ -118,33 +117,33 @@ wsReq = async (req, conn) => {
     case 'BootNotification':
       connCP.storeConnection(req.connectorSerial, conn);
       conf.pdu = {currentTime: Date.now(), interval: 300};
-      cwjy = { action: "BootNotification", type: "ocpp", condition: req.connectorSerial, queryObj: req };
+      cwjy = { action: req.req, connector: req.connectorSerial, pdu: req.pdu };
       conf.pdu.status = await connDBServer.sendAndReceive(cwjy);
       break;
     case 'HeartBeat':
       connCP.storeConnection(req.connectorSerial, conn);
       req.pdu.currentTime = Date.now();
-      cwjy = { action: "update", type: "ocpp", condition: "", value: "", queryObj: req };
+      cwjy = { action: "HeartBeat", connector: req.connectorSerial, pdu: req.pdu };
       connDBServer.sendOnly(cwjy);
       conf.pdu = {currentTime: Date.now()};
       break;
     case 'StatusNotification':
-      cwjy = { action: "update", type: "ocpp", condition: "", value: "", queryObj: req };
+      cwjy = { action: "Update", connector: req.connectorSerial, pdu: req.pdu };
       connDBServer.sendOnly(cwjy);
       break;
     case 'MeterValues':
       break;
     case 'Autorize':
-      cwjy = { action: "get", type: "ocpp", condition: "", value: "", queryObj: req };
+      cwjy = { action: "Autorize", connector: req.connectorSerial, pdu: req.pdu };
       break;
     case 'StartTransaction':
-      cwjy = { action: "StartCharging", type: "ocpp", condition: "", value: "", queryObj: req };
+      cwjy = { action: "StartCharging", connector: req.connectorSerial, pdu: req.pdu };
       conf.pdu.status = await connDBServer.sendAndReceive(cwjy);
       ///////////////////////////////
       // for RFID 
       break;
     case 'StopTransaction':
-      cwjy = { action: "update", type: "ocpp", queryObj: req };
+      cwjy = { action: "update", connector: req.connectorSerial, pdu: req.pdu };
       break;
     case 'ShowArray':
       /////////////////////////////////////

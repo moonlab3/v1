@@ -35,7 +35,7 @@ client.on('connect', (connection) => {
 
   connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", 
         "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "test", "chargePointId": 1111}}`);
-        //////////////////////////////////////////////////////////////////////////////// check cpID and connectorSerial
+        /////////////////////////////////////////////// check cpID and connectorSerial
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {

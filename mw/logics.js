@@ -34,7 +34,7 @@ withReturn = async (cwjy, callback) => {
       returnValue = result[0];
       break;
     case 'ConnectorCheck':
-      if(result[0].status == 'available')
+      if(result[0].status == 'available' || result[0].status == 'preparing' || result[0].status == 'finishing')
         returnValue = 'Accepted';
       else if (result[0].status == 'reserved' && result[0].occupyingUserId == cwjy.queryObj.userId)
         returnValue = 'Accepted';
@@ -44,6 +44,8 @@ withReturn = async (cwjy, callback) => {
       // create BILL record
       break;
 
+    case 'StatusNotification':
+      break;
     case 'BootNotification':
       returnValue = null;
       for (var index in result) {

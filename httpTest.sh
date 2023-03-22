@@ -8,7 +8,8 @@ secs=$SECONDS
 #curl -X POST https://127.0.0.1:3001/v1/hscan -d '{"id": "'"$id""$secs"'", "pass":'"$secs"'}' -H "Content-Type: application/json"
 #echo ""
 #sleep 1
-curl -k -X GET https://127.0.0.1:3001/v1/hscan/"$rand"/user/"$rand$rand"  -H "Content-Type: application/json"
+#curl -k -X GET https://127.0.0.1:3001/v1/hscan/"$rand"/user/"$rand$rand"  -H "Content-Type: application/json"
+curl -k -X GET https://34.207.158.106:3001/v1/hscan/"$rand"/user/"$rand$rand"  -H "Content-Type: application/json"
 echo ""
 sleep .3
 
