@@ -1,4 +1,4 @@
-const connDBServer = require('../tools/socketIOWrapper');
+const connDBServer = require('../tools/socketIOWrapper')('apiServer');
 const connCP = require('../tools/websocketWrapper');
 var waitingJobs = 0;
 //const HTTPParser = require('http-parser-js');
@@ -9,7 +9,7 @@ hscanNotLoggedIn = async (req, res, next) => {
   // 
 }
 
-hscanLoggedIn = async (req, res, next) => {
+hscanLoggedIn = async (req, res) => {
   //console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
 
 ///////////////////////////////////////////
@@ -31,12 +31,11 @@ hscanLoggedIn = async (req, res, next) => {
   }
   */
   res.end();
-  console.log(result);
+  console.log('apiController:hscan: ' + result);
   waitingJobs--;
-  next();
 }
 
-hscanAction = async (req, res, next) => {
+hscanAction = async (req, res) => {
   waitingJobs++;
   var reqToCP = {connectorSerial: req.params.connectorSerial, pdu: {idTag: req.params.userId}};
   var cwjy, result;
@@ -59,14 +58,14 @@ hscanAction = async (req, res, next) => {
       reqToCP.req = 'RemoteStartTransaction';
       //console.log('request to chargepoint: ' + JSON.stringify(reqToCP));
       result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
-      console.log(result);
+      console.log('apiServer:hScanAction: ' + result);
       if (result.pdu.status == 'Accepted') {
         cwjy = { action: 'Charge', user:req.params.userId, connector: req.params.connectorSerial };
         connDBServer.sendOnly(cwjy);
-        console.log('charging accepted');
+        console.log('apiServer:hscanAction: charging accepted');
       }
       else {
-        console.log('charging rejected');
+        console.log('apiServer:hscanAction: charging rejected');
       }
       res.json({userId: req.params.userId, responseCode: result.pdu.status,
                 result: {connectorSerial: req.params.connectorSerial, status: 'hohoho'}});
@@ -106,9 +105,6 @@ cpPut = (req, res, next) => {
 
 }
 
-afterWork = (req, conn) => {
-}
-
 wsReq = async (req, conn) => {
   var cwjy, result;
 
@@ -117,33 +113,33 @@ wsReq = async (req, conn) => {
     case 'BootNotification':
       connCP.storeConnection(req.connectorSerial, conn);
       conf.pdu = {currentTime: Date.now(), interval: 300};
-      cwjy = { action: req.req, connector: req.connectorSerial, pdu: req.pdu };
+      cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu };
       conf.pdu.status = await connDBServer.sendAndReceive(cwjy);
       break;
     case 'HeartBeat':
       connCP.storeConnection(req.connectorSerial, conn);
       req.pdu.currentTime = Date.now();
-      cwjy = { action: "HeartBeat", connector: req.connectorSerial, pdu: req.pdu };
+      cwjy = { action: "HeartBeat", connectorSerial: req.connectorSerial, pdu: req.pdu };
       connDBServer.sendOnly(cwjy);
       conf.pdu = {currentTime: Date.now()};
       break;
     case 'StatusNotification':
-      cwjy = { action: "Update", connector: req.connectorSerial, pdu: req.pdu };
+      cwjy = { action: "Update", connectorSerial: req.connectorSerial, pdu: req.pdu };
       connDBServer.sendOnly(cwjy);
       break;
     case 'MeterValues':
       break;
     case 'Autorize':
-      cwjy = { action: "Autorize", connector: req.connectorSerial, pdu: req.pdu };
+      cwjy = { action: "Autorize", connectorSerial: req.connectorSerial, pdu: req.pdu };
       break;
     case 'StartTransaction':
-      cwjy = { action: "StartCharging", connector: req.connectorSerial, pdu: req.pdu };
+      cwjy = { action: "StartCharging", connectorSerial: req.connectorSerial, pdu: req.pdu };
       conf.pdu.status = await connDBServer.sendAndReceive(cwjy);
       ///////////////////////////////
       // for RFID 
       break;
     case 'StopTransaction':
-      cwjy = { action: "update", connector: req.connectorSerial, pdu: req.pdu };
+      cwjy = { action: "update", connectorSerial: req.connectorSerial, pdu: req.pdu };
       break;
     case 'ShowArray':
       /////////////////////////////////////
@@ -203,8 +199,7 @@ module.exports = {
   cpPut: cpPut,
   wsReq: wsReq,
   wsConf: wsConf,
-  hostGet: hostGet,
-  afterWork: afterWork
+  hostGet: hostGet
 };
 
 

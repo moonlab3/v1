@@ -5,11 +5,11 @@ makeQuery = (cwjy) => {
     case 'ConnectorCheck':
     case 'ConnectorInformation':
       query = `SELECT status, occupyingUserId, occupyingEnd FROM connector 
-              WHERE connectorSerial = '${cwjy.connector}'`;
+              WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'Charge':
       query = `UPDATE connector SET status = 'charging'
-              WHERE connectorSerial = '${cwjy.connector}';
+              WHERE connectorSerial = '${cwjy.connectorSerial}';
               INSERT INTO bill (started, chargePointId, connectorSerial, ownerId, userId)
               VALUES (CURRENT_TIMESTAMP, )`;
       break;
@@ -100,7 +100,7 @@ makeMessage = (type, obj) => {
     buffer += `"color": "${pdu.color}", `;
 
   buffer = buffer.slice(0, buffer.length - 2) + `}}`;
-  console.debug('sending ' + buffer + 'length:' + buffer.length);
+  console.debug('messageHandler: sending ' + buffer + 'length:' + buffer.length);
   return buffer;
 }
 

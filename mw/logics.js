@@ -1,20 +1,23 @@
-const dbConnector = require('../tools/dbConnector');
+//const dbConnector = require('../tools/dbConnector');
+const config = require('config');
+const dbms = config.get('dbms');
+const dbConnector = require('../tools/dbConnector')(dbms);
 const messageHandler = require('../tools/messageHandler');
 var dbSpeedAvg = 0, trxCount = 0;
 
 preProcess = (event, cwjy, callback) => {
-  console.log(`event: ${event}, cwjy: ${JSON.stringify(cwjy)}`);
+  console.log(`dbServer:preProcess: event: ${event}, cwjy: ${JSON.stringify(cwjy)}`);
 
 }
 
 showPerformance = () => {
-  console.log(`transactions: ${trxCount}, average processing time(ms): ${dbSpeedAvg}`);
+  console.log(`dbServer:: transactions: ${trxCount}, average processing time(ms): ${dbSpeedAvg}`);
 }
 noReturn = (cwjy) => {
   var query = messageHandler.makeQuery(cwjy);
   var result = dbConnector.submitSync(query);
 
-  console.log('noreturn result: ' + JSON.stringify(result) );
+  console.log('dbServer:noReturn: result: ' + JSON.stringify(result) );
 }
 
 withReturn = async (cwjy, callback) => {
@@ -57,7 +60,7 @@ withReturn = async (cwjy, callback) => {
           returnValue = "Rejected";
       }
       break;
-  }
+}
 
   //console.log('withReturn: ' + returnValue);
   callback(returnValue);

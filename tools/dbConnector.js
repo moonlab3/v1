@@ -1,8 +1,7 @@
-var dbConn;
-var trxCount = 0, dbSpeedAvg = 0;
 
-init = function (dbms) {
-  dbConn = require('mysql').createConnection({
+function DBConnector(dbms) {
+  var trxCount = 0, dbSpeedAvg = 0;
+  const dbConn = require('mysql').createConnection({
     port: dbms.port,
     host: dbms.host,
     user: dbms.user,
@@ -12,41 +11,36 @@ init = function (dbms) {
 
   dbConn.connect((err) => {
     if (err) throw err;
-    console.error(`mySQL connected. ${new Date(Date.now())} port: ${dbms.port}`);
+    console.error(`dbConnector:init: mySQL connected. ${new Date(Date.now())} port: ${dbms.port}`);
   });
-}
 
-submitSync = async (query) => {
-  if(!query)
-    return null;
-  return new Promise((resolve, reject) => {
-    console.log('sql: ' + query);
-    var start = Date.now();
-    dbConn.query(query, (err, res) => {
-      if (err) {
-        console.log('DB error with ' + err);
-        reject(err);
-      }
-      var end = Date.now();
-      trxCount++;
-      dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
-      console.log(`success with ${res.length} records, fetched in ${end - start}ms. average: ${dbSpeedAvg}`);
-      console.log(res);
-      resolve(res);
+  submitSync = async (query) => {
+  //async function submitSync (query) {
+    if (!query)
+      return null;
+    return new Promise((resolve, reject) => {
+      console.log('sql: ' + query);
+      var start = Date.now();
+      dbConn.query(query, (err, res) => {
+        if (err) {
+          console.log('dbConnector:submitSync: DB error with ' + err);
+          reject(err);
+        }
+        var end = Date.now();
+        trxCount++;
+        dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
+        console.log(`dbConnector:submitSync: success with ${res.length} records, fetched in ${end - start}ms. average: ${dbSpeedAvg}`);
+        //console.log(res);
+        resolve(res);
+      });
     });
-  });
-}
-
-admin = function (query, auth) {
-  if(auth) {
-    console.log('admin mode: ' +  query);
-
   }
 
+  const dbConnector = {
+    submitSync
+  }
+
+  return dbConnector;
 }
 
-module.exports = {
-  init: init,
-  submitSync: submitSync,
-  admin: admin
-}
+module.exports = DBConnector;

@@ -1,20 +1,36 @@
-const config = require('config');
-const dbserver = config.get('dbserver');
-const io = require('socket.io-client')(`http://${dbserver.host}:${dbserver.port}`);
+////////////////////////////////////////////
+// socketClient Object with construct function
+  const config = require('config');
+  const dbserver = config.get('dbserver');
+  const socketio = require('socket.io-client');
 
-sendOnly= (msg) => {
-  io.emit('noReturn', msg);
-}
+function SocketClient  (namespace)  {
 
-sendAndReceive = (msg) => {
-  return new Promise((resolve, reject) => {
-    io.emit('withReturn', msg, (result) => {
-      resolve(result);
+  var io;
+
+  if (namespace)
+    io = socketio(`http://${dbserver.host}:${dbserver.port}/${namespace}`);
+  else
+    io = socketio(`http://${dbserver.host}:${dbserver.port}`);
+
+  sendOnly = (msg) => {
+    io.emit('noReturn', msg);
+  }
+
+  sendAndReceive = (msg) => {
+    return new Promise((resolve, reject) => {
+      io.emit('withReturn', msg, (result) => {
+        resolve(result);
+      });
     });
-  });
+  }
+
+  const socketClient  = {
+    sendOnly,
+    sendAndReceive
+  }
+
+  return socketClient;
 }
 
-module.exports = {
-  sendOnly: sendOnly,
-  sendAndReceive: sendAndReceive
-}
+module.exports = SocketClient;

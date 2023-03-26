@@ -2,9 +2,9 @@
   "name": "v1",
   "version": "1.0.0",
   "description": "hcLab v1",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node servers/dbServer.js hcharge & node servers/apiServer.js hcharge & node servers/nnmServer.js hcharge",
+    "stop": "pkill hcharge"
   },
   "repository": {
     "type": "git",

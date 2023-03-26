@@ -6,6 +6,10 @@ var wss;
 var socketArray = [];
 var callbackArray = [];
 
+/////////////////////////////////////////////////
+//  make this object
+///////////////////////////////////////////////
+
 init= function(server) {
   wss = new WebSocketServer({
     httpServer: server,
@@ -25,7 +29,7 @@ init= function(server) {
         returnCallback(incoming.connectorSerial, incoming, null);
       }
       else {
-        console.log('wss::no req, no conf. wtf?');
+        console.log('wss:init:no req, no conf. wtf?');
       }
     });
 
@@ -42,9 +46,8 @@ getServer = function() {
 }
 
 showAllConnections = function(comment) {
-  //console.log(comment + ' done. registered clinets are below.')
   socketArray.forEach((entry) => {
-    console.log(entry.id);
+    console.log('wss:showAllConnections: ' + entry.id);
   })
 }
 
@@ -61,7 +64,6 @@ storeConnection = function(connectorSerial, connection) {
 
 removeConnection = function(connectorSerial) {
   var index = socketArray.findIndex(i => i.id == connectorSerial);
-  //console.log(`removeConnection "${connectorSerial}" index: ${index}`);
   if (index >= 0) {
     socketArray[index].conn.close();
     socketArray.splice(index, 1);
@@ -81,18 +83,18 @@ sendTo = function(connectorSerial, connection, type, data) {
       return true;
     }
     else {
-      console.warn(`No such client. ${connectorSerial} needs rebooting.`);
+      console.warn(`wss:sendTo: No such client. ${connectorSerial} needs rebooting.`);
       return false;
     }
   }
 }
 
 sendAndReceive = function(connectorSerial, data) {
-  console.log('sendAndReceive:::: ' + JSON.stringify(data));
+  //console.log('sendAndReceive:::: ' + JSON.stringify(data));
   sendTo(connectorSerial, null, 'req', data);
   return new Promise((resolve, reject) => {
     enlistCallback(connectorSerial, (result) => {
-      console.log('sendAndReceive received::::' + JSON.stringify(result));
+      //console.log('sendAndReceive received::::' + JSON.stringify(result));
       delistCallback(connectorSerial);
       resolve(result);
     });
@@ -107,7 +109,7 @@ enlistCallback = function(connectorSerial, callback) {
 returnCallback = function(connectorSerial, param1, param2) {
     var found = callbackArray.find(({ id }) => id == connectorSerial);
     if(!found) {
-      console.log('returncallback weve got problem.');
+      console.log('wss:returnCallback: returncallback weve got problem.');
       return;
     }
     if(param2) {
@@ -120,12 +122,11 @@ returnCallback = function(connectorSerial, param1, param2) {
 delistCallback = function(connectorSerial) {
   //var index = callbackArray.indexOf(({ id }) => id == String(connectorSerial));
   var index = callbackArray.findIndex(i => i.id == connectorSerial);
-  //console.log(`delist "${connectorSerial}" index: ${index}`);
   if (index >= 0) {
     callbackArray.splice(index, 1);
   }
   else {
-    console.error('delist weve got a problem. index: ' + index);
+    console.error('wss:delistCallback: delist weve got a problem. index: ' + index);
   }
 
 }
