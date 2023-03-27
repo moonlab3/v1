@@ -17,7 +17,7 @@ function SocketClient  (namespace)  {
     io.emit('noReturn', msg);
   }
 
-  sendAndReceive = (msg) => {
+  sendAndReceive = async (msg) => {
     return new Promise((resolve, reject) => {
       io.emit('withReturn', msg, (result) => {
         resolve(result);

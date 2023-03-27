@@ -1,16 +1,11 @@
 // websocket server with OCPP 1.6 protocol
-const messageHandler = require('./messageHandler');
-
 const WebSocketServer = require('websocket').server;
-var wss;
-var socketArray = [];
-var callbackArray = [];
 
-/////////////////////////////////////////////////
-//  make this object
-///////////////////////////////////////////////
+function WebSocketWrapper(server) {
+  var wss;
+  var socketArray = [];
+  var callbackArray = [];
 
-init= function(server) {
   wss = new WebSocketServer({
     httpServer: server,
     autoAcceptConnections: false
@@ -38,108 +33,109 @@ init= function(server) {
     });
 
   });
-  // end of receive and callback
-}
 
-getServer = function() {
-  return wss;
-}
-
-showAllConnections = function(comment) {
-  socketArray.forEach((entry) => {
-    console.log('wss:showAllConnections: ' + entry.id);
-  })
-}
-
-storeConnection = function(connectorSerial, connection) {
-  var found = socketArray.find(({id}) => id == connectorSerial);
-  if(!found || found.conn.socket.readyState > 1) {
-    removeConnection(connectorSerial);
-    var sock = { id: `${connectorSerial}`, conn: connection };
-    socketArray.push(sock);
-    //showAllConnections('push');
-    //console.debug(`pushed into websocket array: ${connection.remoteAddresses}`);
-  }
-}
-
-removeConnection = function(connectorSerial) {
-  var index = socketArray.findIndex(i => i.id == connectorSerial);
-  if (index >= 0) {
-    socketArray[index].conn.close();
-    socketArray.splice(index, 1);
+  getServer = function () {
+    return wss;
   }
 
-}
-
-sendTo = function(connectorSerial, connection, type, data) {
-    
-  if(connectorSerial == '') {
-    connection.send(messageHandler.makeMessage(type, data));
+  showAllConnections = function (comment) {
+    socketArray.forEach((entry) => {
+      console.log('wss:showAllConnections: ' + entry.id);
+    })
   }
-  else {
+
+  storeConnection = function (connectorSerial, connection) {
     var found = socketArray.find(({ id }) => id == connectorSerial);
-    if (found) {
-      found.conn.send(messageHandler.makeMessage(type, data));
-      return true;
+    if (!found || found.conn.socket.readyState > 1) {
+      removeConnection(connectorSerial);
+      var sock = { id: `${connectorSerial}`, conn: connection };
+      socketArray.push(sock);
+      //showAllConnections('push');
+      //console.debug(`pushed into websocket array: ${connection.remoteAddresses}`);
+    }
+  }
+
+  removeConnection = function (connectorSerial) {
+    var index = socketArray.findIndex(i => i.id == connectorSerial);
+    if (index >= 0) {
+      socketArray[index].conn.close();
+      socketArray.splice(index, 1);
+    }
+
+  }
+
+  sendTo = function (connectorSerial, connection, data) {
+    if (connectorSerial == '') {
+      //connection.send(messageHandler.makeMessage(type, data));
+      connection.send(data);
     }
     else {
-      console.warn(`wss:sendTo: No such client. ${connectorSerial} needs rebooting.`);
-      return false;
+      var found = socketArray.find(({ id }) => id == connectorSerial);
+      if (found) {
+        //found.conn.send(messageHandler.makeMessage(type, data));
+        found.conn.send(data);
+        return true;
+      }
+      else {
+        console.warn(`wss:sendTo: No such client. ${connectorSerial} needs rebooting.`);
+        return false;
+      }
     }
   }
-}
 
-sendAndReceive = function(connectorSerial, data) {
-  //console.log('sendAndReceive:::: ' + JSON.stringify(data));
-  sendTo(connectorSerial, null, 'req', data);
-  return new Promise((resolve, reject) => {
-    enlistCallback(connectorSerial, (result) => {
-      //console.log('sendAndReceive received::::' + JSON.stringify(result));
-      delistCallback(connectorSerial);
-      resolve(result);
+  sendAndReceive = function (connectorSerial, data) {
+    //console.log('sendAndReceive:::: ' + JSON.stringify(data));
+    sendTo(connectorSerial, null, data);
+    return new Promise((resolve, reject) => {
+      enlistCallback(connectorSerial, (result) => {
+        //console.log('sendAndReceive received::::' + JSON.stringify(result));
+        delistCallback(connectorSerial);
+        resolve(result);
+      });
     });
-  });
-}
+  }
 
-enlistCallback = function(connectorSerial, callback) {
-  var cb = { id: connectorSerial, callback: callback };
-  callbackArray.push(cb);
-}
+  enlistCallback = function (connectorSerial, callback) {
+    var cb = { id: connectorSerial, callback: callback };
+    callbackArray.push(cb);
+  }
 
-returnCallback = function(connectorSerial, param1, param2) {
+  returnCallback = function (connectorSerial, param1, param2) {
     var found = callbackArray.find(({ id }) => id == connectorSerial);
-    if(!found) {
+    if (!found) {
       console.log('wss:returnCallback: returncallback weve got problem.');
       return;
     }
-    if(param2) {
+    if (param2) {
       found.callback(param1, param2);
     }
     else {
       found.callback(param1);
     }
-}
-delistCallback = function(connectorSerial) {
-  //var index = callbackArray.indexOf(({ id }) => id == String(connectorSerial));
-  var index = callbackArray.findIndex(i => i.id == connectorSerial);
-  if (index >= 0) {
-    callbackArray.splice(index, 1);
   }
-  else {
-    console.error('wss:delistCallback: delist weve got a problem. index: ' + index);
+  delistCallback = function (connectorSerial) {
+    //var index = callbackArray.indexOf(({ id }) => id == String(connectorSerial));
+    var index = callbackArray.findIndex(i => i.id == connectorSerial);
+    if (index >= 0) {
+      callbackArray.splice(index, 1);
+    }
+    else {
+      console.error('wss:delistCallback: delist weve got a problem. index: ' + index);
+    }
+
   }
 
+  const websocketWrapper = {
+    getServer,
+    storeConnection,
+    removeConnection,
+    sendTo,
+    sendAndReceive,
+    enlistCallback,
+    delistCallback,
+    showAllConnections
+  }
+  return websocketWrapper;
 }
 
-
-module.exports = {
-  init: init,
-  getServer: getServer,
-  storeConnection: storeConnection,
-  removeConnection: removeConnection,
-  sendTo: sendTo,
-  sendAndReceive: sendAndReceive,
-  enlistCallback: enlistCallback,
-  delistCallback: delistCallback,
-  showAllConnections: showAllConnections
-}
+module.exports = WebSocketWrapper;

@@ -1,4 +1,3 @@
-//const dbConnector = require('../tools/dbConnector');
 const config = require('config');
 const dbms = config.get('dbms');
 const dbConnector = require('../tools/dbConnector')(dbms);
@@ -25,7 +24,6 @@ withReturn = async (cwjy, callback) => {
   // cwjy handling
   var returnValue;
   var query = messageHandler.makeQuery(cwjy);
-
   var result = await dbConnector.submitSync(query);
       ////////////////////////////
       // todo
@@ -47,18 +45,27 @@ withReturn = async (cwjy, callback) => {
       // create BILL record
       break;
 
+    case 'Authorize':
+      console.log('Authorize: ' + result);
+      break;
+    case 'StartTransaction':
+      console.log('StartTransaction: ' + result);
+      break;
     case 'StatusNotification':
       break;
     case 'BootNotification':
-      returnValue = null;
+      var temp = {req: cwjy.action, connectorSerial:cwjy.connectorSerial, 
+                  pdu: {currentTime: Date.now(), interval: 60}};
       for (var index in result) {
-        if (result[index].connectorSerial == cwjy.condition) {
-          returnValue = "Accepted";
+        if (result[index].connectorSerial == cwjy.connectorSerial) {
+          temp.pdu.status = "Accepted";
+          temp.pdu.connectorId = result[index].connectorId;
           break;
         }
-        if(!returnValue)
-          returnValue = "Rejected";
+        if(!temp)
+          temp.pdu.status = "Rejected";
       }
+      returnValue = messageHandler.makeMessage('conf', temp);
       break;
 }
 
