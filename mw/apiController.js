@@ -4,6 +4,7 @@ function APIController(server) {
   const connDBServer = require('../tools/socketIOWrapper')('apiServer');
   const connCP = require('../tools/websocketWrapper')(server);
   var waitingJobs = 0;
+  var lockArray = [];
 
   hscanLoggedIn = async (req, res) => {
     //console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
@@ -13,10 +14,9 @@ function APIController(server) {
     // fetch charging occupying end
     // fetch charging status
     waitingJobs++;
-    var cwjy = { action: 'ConnectorInformation', condition: 'value', type: 'http', queryObj: req.params };
+    var cwjy = { action: 'ConnectorInformation', connectorSerial: req.params.connectorSerial, userId: req.params.userId};
     var result = await connDBServer.sendAndReceive(cwjy);
 
-    //res.writeHead(200);
     res.json(result);
     /*
     for (var i = 0; i < result.length; i++) {
@@ -41,6 +41,9 @@ function APIController(server) {
     // cancel charging
     switch (req.params.action) {
       case 'Charge':
+        /////////////////////////////////////////////
+        // semaphore location
+        lockActionProcess(req.params.connectorSerial);
         cwjy = { action: 'ConnectorCheck', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
         result = await connDBServer.sendAndReceive(cwjy);
         if (result == 'Rejected') {
@@ -53,13 +56,18 @@ function APIController(server) {
         }
 
         reqToCP.req = 'RemoteStartTransaction';
-        //console.log('request to chargepoint: ' + JSON.stringify(reqToCP));
         result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
         console.log('apiServer:hScanAction: ' + result);
         if (result.pdu.status == 'Accepted') {
+
+          //////////////////////////////////////////////////////
+          // I think these lines have to move to wsReq:StartTransaction case.
+          // There's a chance still the coupler is not plugged.
+          /*
           cwjy = { action: 'Charge', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
           connDBServer.sendOnly(cwjy);
           console.log('apiServer:hscanAction: charging accepted');
+          */
         }
         else {
           console.log('apiServer:hscanAction: charging rejected');
@@ -69,9 +77,8 @@ function APIController(server) {
           result: { connectorSerial: req.params.connectorSerial, status: 'hohoho' }
         });
 
-        /////////////////////////////////////////
-        // todo
-        // occupyingEnd time calculation
+        break;
+      case 'Blink':
         break;
       case 'Reserve':
         break;
@@ -83,9 +90,8 @@ function APIController(server) {
         break;
     }
 
-    //res.writeHead(200);
     waitingJobs--;
-    //res.json(result);
+    unlockActionProcess(req.params.connectorSerial);
   }
 
   cpGet = (req, res, next) => {
@@ -105,7 +111,7 @@ function APIController(server) {
   }
 
   wsReq = async (req, conn) => {
-    var cwjy, result;
+    var cwjy;
 
     var conf = { req: req.req, connectorSerial: req.connectorSerial, pdu: {} };
     switch (req.req) {
@@ -133,13 +139,18 @@ function APIController(server) {
         conf = connDBServer.sendAndReceive(cwjy);
         break;
       case 'StartTransaction':
-        cwjy = { action: req.req, userId: req.pdu.idTag, connectorSerial: req.connectorSerial, pdu: req.pdu };
+        cwjy = { action: 'Charge', userId: req.pdu.idTag, connectorSerial: req.connectorSerial,
+                  bulkSoc: req.pdu.bulkSoc, fullSoc: req.pdu.fullSoc, meterStart: req.pdu.meterStart };
         conf = await connDBServer.sendAndReceive(cwjy);
+        /////////////////////////////////////////
+        // todo
+        // occupyingEnd time calculation
         ///////////////////////////////
         // for RFID 
         break;
       case 'StopTransaction':
         cwjy = { action: req.req, userId: req.pdu.idTag, connectorSerial: req.connectorSerial, pdu: req.pdu };
+        conf = await connDBServer.sendAndReceive(cwjy);
         break;
       case 'ShowArray':
         /////////////////////////////////////
@@ -152,7 +163,7 @@ function APIController(server) {
         connCP.removeConnection(req.connectorSerial);
         return;
     }
-    connCP.sendTo(req.connectorSerial, conn, JSON.stringify(conf));
+    connCP.sendTo(req.connectorSerial, conn, conf);
   }
 
   wsConf = (req, conn) => {
@@ -188,7 +199,42 @@ function APIController(server) {
 
   userFavo = (req, res) => {
   }
+
+  lockActionProcess = (connectorSerial) => {
+    var found = lockArray.find(item => item == connectorSerial);
+    if(found) {
+      console.log (`apiController: [${connectorSerial}] is already locked`);
+      return false;
+    }
+    lockArray.push(connectorSerial);
+    return true;
+  }
+
+  unlockActionProcess = (connectorSerial) => {
+    var index = lockArray.findIndex(item => item == connectorSerial);
+    if (index >= 0) {
+      lockArray.splice(index, 1);
+    }
+    else {
+      console.log(`apiController: Can't find [${connectorSerial}].`);
+    }
+  }
+  
+  waitAndGo = (req, res, next) => {
+    //console.log('waitandgo called. client want ' + r)
+    var index = lockArray.findIndex(item => item == req.params.connectorSerial);
+    if (index >= 0) {
+      res.write('please wait and try again.');
+      res.end();
+      return;
+    }
+    else {
+      next();
+    }
+  }
+
   const apiController = {
+    waitAndGo,
     hscanLoggedIn,
     hscanAction,
     userHistory,
@@ -200,6 +246,7 @@ function APIController(server) {
     wsConf,
     hostGet
   }
+
   connCP.enlistCallback('general', wsReq);
 
   return apiController;

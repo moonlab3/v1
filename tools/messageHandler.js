@@ -8,10 +8,15 @@ makeQuery = (cwjy) => {
               WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'Charge':
-      query = `UPDATE connector SET status = 'charging'
-              WHERE connectorSerial = '${cwjy.connectorSerial}';
-              INSERT INTO bill (started, chargePointId, connectorSerial, ownerId, userId)
-              VALUES (CURRENT_TIMESTAMP, )`;
+      /*
+      query = ` UPDATE connector SET status = 'charging', occupyingUserId = '${cwjy.userId}' 
+      WHERE connectorSerial = '${cwjy.connectorSerial}';
+      INSERT INTO bill (started, connectorSerial, userId, trxId) 
+      VALUES (CURRENT_TIMESTAMP, '${cwjy.connectorSerial}', ${cwjy.userId}, ${cwjy.trxCount});
+      UPDATE bill INNER JOIN connector ON bill.connectorSerial = connector.connectorSerial
+      SET bill.chargePointId = connector.chargePointId, bill.ownerId = connector.ownerId
+      WHERE bill.trxId = ${cwjy.trxCount};`;
+      */
       break;
     case 'Reserve':
       break;
@@ -22,11 +27,12 @@ makeQuery = (cwjy) => {
     case 'Report':
       break;
     case 'BootNotification':
-      query= `SELECT connectorSerial, connectorId FROM connector JOIN chargepoint ON connector.chargePointId = ${cwjy.pdu.chargePointId}
-                  WHERE vendor = '${cwjy.pdu.chargePointVendor}' AND model = '${cwjy.pdu.chargePointModel}'`;
+      query= `SELECT connectorSerial, connectorId FROM connector INNER JOIN chargepoint 
+              ON chargepoint.vendor = '${cwjy.pdu.chargePointVendor}' AND chargepoint.model = '${cwjy.pdu.chargePointModel}'
+              WHERE connector.chargePointId = chargepoint.chargePointId`;
       break;
     case 'Authorize':
-      query= `SELECT COUNT(*) FROM user WHERE userId = '${cwjy.pdu.idTag}'`;
+      query= `SELECT COUNT(*) AS count FROM user WHERE userId = '${cwjy.pdu.idTag}' AND validPayment=true`;
       break;
     case 'HeartBeat':
       query= `UPDATE connector SET lastHeartbeat = CURRENT_TIMESTAMP 
@@ -35,14 +41,19 @@ makeQuery = (cwjy) => {
     case 'MeterValues':
       break;
     case 'StartTransaction':
-      query= `UPDATE connector SET status = 'Charging', occupyingUserId = ${cwjy.userId} 
-              WHERE connectorSerial = '${cwjy.connectorSerial}'`;
+      query = `UPDATE connector SET status = 'charging', occupyingUserId = '${cwjy.userId}' 
+               WHERE connectorSerial = '${cwjy.connectorSerial}';
+               INSERT INTO bill (started, connectorSerial, userId, trxId) 
+               VALUES (CURRENT_TIMESTAMP, '${cwjy.connectorSerial}', ${cwjy.userId}, ${cwjy.trxCount});
+               UPDATE bill INNER JOIN connector ON bill.connectorSerial = connector.connectorSerial
+               SET bill.chargePointId = connector.chargePointId, bill.ownerId = connector.ownerId
+               WHERE bill.trxId = ${cwjy.trxCount};`;
       break;
     case 'StatusNotification':
       query= `UPDATE connector SET status = '${cwjy.pdu.status}' WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'StopTransaction':
-      query= `UPDATE connector SET status = 'Finishing' WHERE connectorSerial = '${cwjy.connectorSerial}'`;
+      query= `UPDATE connector SET status = 'finishing' WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'RemoteStartTransaction':
       query = `UPDATE connector SET status = 'Charging' WHERE connectorSerial = '${cwjy.connectorSerial}`;

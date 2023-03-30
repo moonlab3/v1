@@ -48,7 +48,7 @@ client.on('connect', (connection) => {
         break;
       case 'start\n':
         connection.send(`{"req":"StartTransaction", "connectorSerial":"${connser}", "pdu":{"connectorId":3, 
-                          "idTag":"${user}", "meterStart": 234, "timeStamp": ${Date.now()}, "bulkSoc": 234}}`);
+                          "idTag":"${user}", "meterStart": 234, "timeStamp": ${Date.now()}, "bulkSoc": 12.1, "fullSoc": 72.7 }}`);
         break;
       case 'stop\n':
         connection.send(`{"req":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId":9983, 

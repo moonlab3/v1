@@ -41,7 +41,7 @@ function WebSocketWrapper(server) {
   showAllConnections = function (comment) {
     socketArray.forEach((entry) => {
       console.log('wss:showAllConnections: ' + entry.id);
-    })
+    });
   }
 
   storeConnection = function (connectorSerial, connection) {
@@ -67,13 +67,13 @@ function WebSocketWrapper(server) {
   sendTo = function (connectorSerial, connection, data) {
     if (connectorSerial == '') {
       //connection.send(messageHandler.makeMessage(type, data));
-      connection.send(data);
+      connection.send(JSON.stringify(data));
     }
     else {
       var found = socketArray.find(({ id }) => id == connectorSerial);
       if (found) {
         //found.conn.send(messageHandler.makeMessage(type, data));
-        found.conn.send(data);
+        found.conn.send(JSON.stringify(data));
         return true;
       }
       else {

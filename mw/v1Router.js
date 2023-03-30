@@ -5,7 +5,7 @@ var V1RouterWrapper = function (server) {
   const controller = require('./apiController')(server);
 
   router.get('/hscan/:connectorSerial/user/:userId', controller.hscanLoggedIn);
-  router.put('/hscan/:connectorSerial/user/:userId/action/:action', controller.hscanAction);
+  router.put('/hscan/:connectorSerial/user/:userId/action/:action', controller.waitAndGo, controller.hscanAction);
 
   router.get('/user/:userId/status', controller.userStatus);
   router.get('/user/:userId/history', controller.userHistory);

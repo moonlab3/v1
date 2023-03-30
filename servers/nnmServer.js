@@ -17,6 +17,7 @@ function updateRequest() {
 
 }
 
+
 process.title = process.argv[2];
 
 init();

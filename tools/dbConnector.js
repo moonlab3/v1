@@ -6,6 +6,7 @@ function DBConnector(dbms) {
     host: dbms.host,
     user: dbms.user,
     password: dbms.password,
+    multipleStatements: true,
     database: dbms.database
   });
 
@@ -14,7 +15,7 @@ function DBConnector(dbms) {
     console.error(`dbConnector:init: mySQL connected. ${new Date(Date.now())} port: ${dbms.port}`);
   });
 
-  submitSync = async (query) => {
+  submitSync = (query) => {
   //async function submitSync (query) {
     if (!query)
       return null;
@@ -23,7 +24,7 @@ function DBConnector(dbms) {
       var start = Date.now();
       dbConn.query(query, (err, res) => {
         if (err) {
-          console.log('dbConnector:submitSync: DB error with ' + err);
+          console.log('dbConnector:submitSync: ' + err);
           reject(err);
         }
         var end = Date.now();
