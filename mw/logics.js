@@ -80,7 +80,6 @@ function DBController (dbms) {
         break;
     }
 
-    //console.log('withReturn: ' + returnValue);
     callback(returnValue);
   }
 
