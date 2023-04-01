@@ -41,9 +41,6 @@ function APIController(server) {
     // cancel charging
     switch (req.params.action) {
       case 'Charge':
-        /////////////////////////////////////////////
-        // semaphore location
-        lockActionProcess(req.params.connectorSerial);
         cwjy = { action: 'ConnectorCheck', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
         result = await connDBServer.sendAndReceive(cwjy);
         if (result == 'Rejected') {
@@ -54,6 +51,10 @@ function APIController(server) {
           });
           return;
         }
+
+        /////////////////////////////////////////////
+        // semaphore location
+        lockActionProcess(req.params.connectorSerial);
 
         reqToCP.req = 'RemoteStartTransaction';
         result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
@@ -91,7 +92,7 @@ function APIController(server) {
     }
 
     waitingJobs--;
-    unlockActionProcess(req.params.connectorSerial);
+    //unlockActionProcess(req.params.connectorSerial);
   }
 
   cpGet = (req, res, next) => {
@@ -121,27 +122,28 @@ function APIController(server) {
         cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu };
         conf = await connDBServer.sendAndReceive(cwjy);
         break;
+      ////////////////////////////////////////////////////////////////
+      // almost same tasks
       case 'HeartBeat':
         connCP.storeConnection(req.connectorSerial, conn);
         req.pdu.currentTime = Date.now();
-        cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu };
-        connDBServer.sendOnly(cwjy);
         conf.pdu = { currentTime: Date.now() };
-        break;
       case 'StatusNotification':
+      case 'MeterValues':
         cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu };
         connDBServer.sendOnly(cwjy);
-        break;
-      case 'MeterValues':
         break;
       case 'Authorize':
         cwjy = { action: req.req, userId: req.pdu.idTag, connectorSerial: req.connectorSerial, pdu: req.pdu };
         conf = connDBServer.sendAndReceive(cwjy);
         break;
       case 'StartTransaction':
-        cwjy = { action: 'Charge', userId: req.pdu.idTag, connectorSerial: req.connectorSerial,
+        cwjy = { action: req.req, userId: req.pdu.idTag, connectorSerial: req.connectorSerial,
                   bulkSoc: req.pdu.bulkSoc, fullSoc: req.pdu.fullSoc, meterStart: req.pdu.meterStart };
         conf = await connDBServer.sendAndReceive(cwjy);
+        ///////////////////////////////
+        // semaphore location
+        unlockActionProcess(req.connectorSerial);
         /////////////////////////////////////////
         // todo
         // occupyingEnd time calculation

@@ -15,7 +15,11 @@ function DBController (dbms) {
 
     switch (cwjy.action) {
       case 'Charge':
-        cwjy.trxCount = trxCount++;
+        console.log('logics: cwjy.action is Charge');
+        //cwjy.trxCount = trxCount++;
+        // this will be deprecated
+        break;
+      case 'MeterValues':
         break;
     }
     var query = messageHandler.makeQuery(cwjy);
@@ -24,9 +28,9 @@ function DBController (dbms) {
   }
 
   withReturn = async (cwjy, callback) => {
-    // cwjy handling
-    // cwjy handling
     var returnValue;
+    if(cwjy.action == 'StartTransaction')
+      cwjy.trxCount = trxCount++;
     var query = messageHandler.makeQuery(cwjy);
     var result = await dbConnector.submitSync(query);
     console.log('withReturn result: ' + result + 'stringify ' + JSON.stringify(result));
@@ -35,6 +39,8 @@ function DBController (dbms) {
     // RemoteStartTransaction
     // 1. check the status of the connector
     // 2. on available, start charge. on booked, check the userid for booking.
+
+    var temp = { req: cwjy.action, connectorSerial: cwjy.connectorSerial, pdu: {} };
     switch (cwjy.action) {
       case 'ConnectorInformation':
         returnValue = result[0];
@@ -49,27 +55,18 @@ function DBController (dbms) {
         break;
 
       case 'Authorize':
-        if (result[0].count == 1)
-        var temp = { req: cwjy.action, connectorSerial: cwjy.connectorSerial, pdu: {} };
+        temp.pdu = { idTagInfo: { status: result[0].authStatus } };
         returnValue = messageHandler.makeMessage('conf', temp);
         break;
       case 'StartTransaction':
-        //console.log('StartTransaction: ' + result);
-        //////////////////////////////
-        // create BILL record
-        break;
+        temp.pdu = {transionId: cwjy.trxCount, idTagInfo: {status: "Accepted"}};
       case 'StopTransaction':
-        //console.log('StopTransaction: ' + result);
-        var temp = { req: cwjy.action, connectorSerial: cwjy.connectorSerial, pdu: {} };
         returnValue = messageHandler.makeMessage('conf', temp);
         break;
       case 'StatusNotification':
         break;
       case 'BootNotification':
-        var temp = {
-          req: cwjy.action, connectorSerial: cwjy.connectorSerial,
-          pdu: { currentTime: Date.now(), interval: 60 }
-        };
+        temp.pdu = { currentTime: Date.now(), interval: 60 } ;
         for (var index in result) {
           if (result[index].connectorSerial == cwjy.connectorSerial) {
             temp.pdu.status = "Accepted";

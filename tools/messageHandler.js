@@ -8,15 +8,6 @@ makeQuery = (cwjy) => {
               WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'Charge':
-      /*
-      query = ` UPDATE connector SET status = 'charging', occupyingUserId = '${cwjy.userId}' 
-      WHERE connectorSerial = '${cwjy.connectorSerial}';
-      INSERT INTO bill (started, connectorSerial, userId, trxId) 
-      VALUES (CURRENT_TIMESTAMP, '${cwjy.connectorSerial}', ${cwjy.userId}, ${cwjy.trxCount});
-      UPDATE bill INNER JOIN connector ON bill.connectorSerial = connector.connectorSerial
-      SET bill.chargePointId = connector.chargePointId, bill.ownerId = connector.ownerId
-      WHERE bill.trxId = ${cwjy.trxCount};`;
-      */
       break;
     case 'Reserve':
       break;
@@ -32,7 +23,7 @@ makeQuery = (cwjy) => {
               WHERE connector.chargePointId = chargepoint.chargePointId`;
       break;
     case 'Authorize':
-      query= `SELECT COUNT(*) AS count FROM user WHERE userId = '${cwjy.pdu.idTag}' AND validPayment=true`;
+      query= `SELECT authStatus FROM user WHERE userId = '${cwjy.pdu.idTag}'`;
       break;
     case 'HeartBeat':
       query= `UPDATE connector SET lastHeartbeat = CURRENT_TIMESTAMP 
