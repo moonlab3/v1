@@ -2,8 +2,8 @@ makeQuery = (cwjy) => {
   var query;
   //var req = cwjy.queryObj;
   switch (cwjy.action) {
-    case 'ConnectorCheck':
-    case 'ConnectorInformation':
+    case 'ConnectorCheck':                                                // DONE DONE DONE DONE
+    case 'ConnectorInformation':                                          // DONE DONE DONE DONE
       query = `SELECT status, occupyingUserId, occupyingEnd FROM connector 
               WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
@@ -17,21 +17,21 @@ makeQuery = (cwjy) => {
       break;
     case 'Report':
       break;
-    case 'BootNotification':
+    case 'BootNotification':                                                // DONE DONE DONE DONE
       query= `SELECT connectorSerial, connectorId FROM connector INNER JOIN chargepoint 
               ON chargepoint.vendor = '${cwjy.pdu.chargePointVendor}' AND chargepoint.model = '${cwjy.pdu.chargePointModel}'
               WHERE connector.chargePointId = chargepoint.chargePointId`;
       break;
-    case 'Authorize':
+    case 'Authorize':                                                       // DONE DONE DONE DONE
       query= `SELECT authStatus FROM user WHERE userId = '${cwjy.pdu.idTag}'`;
       break;
-    case 'HeartBeat':
+    case 'HeartBeat':                                                       // DONE DONE DONE DONE
       query= `UPDATE connector SET lastHeartbeat = CURRENT_TIMESTAMP 
                   WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'MeterValues':
       break;
-    case 'StartTransaction':
+    case 'StartTransaction':                                                // DONE DONE DONE DONE
       query = `UPDATE connector SET status = 'charging', occupyingUserId = '${cwjy.userId}' 
                WHERE connectorSerial = '${cwjy.connectorSerial}';
                INSERT INTO bill (started, connectorSerial, userId, trxId) 

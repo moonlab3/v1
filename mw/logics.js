@@ -40,12 +40,14 @@ function DBController (dbms) {
     // 1. check the status of the connector
     // 2. on available, start charge. on booked, check the userid for booking.
 
+    ///////////////////////////////////////////
+    // result message making from here
     var temp = { req: cwjy.action, connectorSerial: cwjy.connectorSerial, pdu: {} };
     switch (cwjy.action) {
       case 'ConnectorInformation':
         returnValue = result[0];
         break;
-      case 'ConnectorCheck':
+      case 'ConnectorCheck':                                          // DONE DONE DONE DONE 
         if (result[0].status == 'available' || result[0].status == 'preparing' || result[0].status == 'finishing')
           returnValue = 'Accepted';
         else if (result[0].status == 'reserved' && result[0].occupyingUserId == cwjy.userId)
@@ -54,13 +56,13 @@ function DBController (dbms) {
           returnValue = 'Rejected';
         break;
 
-      case 'Authorize':
+      case 'Authorize':                                               // DONE DONE DONE DONE
         temp.pdu = { idTagInfo: { status: result[0].authStatus } };
         returnValue = messageHandler.makeMessage('conf', temp);
         break;
-      case 'StartTransaction':
+      case 'StartTransaction':                                        // DONE DONE DONE DONE
         temp.pdu = {transionId: cwjy.trxCount, idTagInfo: {status: "Accepted"}};
-      case 'StopTransaction':
+      case 'StopTransaction':                                         // DONE DONE DONE DONE
         returnValue = messageHandler.makeMessage('conf', temp);
         break;
       case 'StatusNotification':

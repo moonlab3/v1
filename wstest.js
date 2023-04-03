@@ -23,8 +23,10 @@ function keyin() {
   else if(target == 'aws') {
     client.connect('wss://34.207.158.106:3001/', 'hclab-protocol');
   }
-  else 
-    client.connect('wss://10.20.20.28:3001/', 'hclab-protocol');
+  else {
+    console.log('usage: wstest.js {target} {connector} {user}');
+    process.exit();
+  }
 }
 keyin();
 

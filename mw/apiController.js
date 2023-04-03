@@ -18,13 +18,6 @@ function APIController(server) {
     var result = await connDBServer.sendAndReceive(cwjy);
 
     res.json(result);
-    /*
-    for (var i = 0; i < result.length; i++) {
-      for (var key in result[i]) {
-        res.write(`${result[i]}`);
-      }
-    }
-    */
     res.end();
     console.log('apiController:hscan: ' + result);
     waitingJobs--;
@@ -60,22 +53,19 @@ function APIController(server) {
         result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
         console.log('apiServer:hScanAction: ' + result);
         if (result.pdu.status == 'Accepted') {
-
-          //////////////////////////////////////////////////////
-          // I think these lines have to move to wsReq:StartTransaction case.
-          // There's a chance still the coupler is not plugged.
-          /*
-          cwjy = { action: 'Charge', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
+          cwjy = { action: 'StatusNotification', 
+                   userId: req.params.userId, connectorSerial: req.params.connectorSerial,
+                   pdu: {status: 'Preparing'} };
           connDBServer.sendOnly(cwjy);
-          console.log('apiServer:hscanAction: charging accepted');
-          */
         }
         else {
-          console.log('apiServer:hscanAction: charging rejected');
+          // console.log('RemoteStartTransaction Rejected');
         }
+        ////////////////////////////////////////////////////
+
         res.json({
-          userId: req.params.userId, responseCode: result.pdu.status,
-          result: { connectorSerial: req.params.connectorSerial, status: 'hohoho' }
+          userId: req.params.userId, responseCode: result.pdu.status, results:
+            { connectors: [{ connectorSerial: req.params.connectorSerial, status: '' }] }
         });
 
         break;
@@ -111,6 +101,35 @@ function APIController(server) {
 
   }
 
+  hostGet = (req, res) => {
+
+  }
+
+  userHistory = async (req, res) => {
+    //console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
+
+    waitingJobs++;
+    var cwjy = { action: 'fetch', condition: 'value', type: 'http', queryObj: req.params };
+    var result = await connDBServer.sendAndReceive(cwjy);
+
+    res.writeHead(200);
+    for (var i = 0; i < result.length; i++) {
+      for (var key in result[i]) {
+        res.write(`key: ${key} value: ${result[i][key]}`);
+      }
+    }
+    res.end();
+    waitingJobs--;
+
+  }
+
+  userStatus = (req, res) => {
+  }
+
+  userFavo = (req, res) => {
+  }
+
+
   wsReq = async (req, conn) => {
     var cwjy;
 
@@ -143,7 +162,8 @@ function APIController(server) {
         conf = await connDBServer.sendAndReceive(cwjy);
         ///////////////////////////////
         // semaphore location
-        unlockActionProcess(req.connectorSerial);
+        //unlockActionProcess(req.connectorSerial);
+
         /////////////////////////////////////////
         // todo
         // occupyingEnd time calculation
@@ -166,40 +186,6 @@ function APIController(server) {
         return;
     }
     connCP.sendTo(req.connectorSerial, conn, conf);
-  }
-
-  wsConf = (req, conn) => {
-    ///////////////////////////////////////////
-    // will be deprecated.
-    // sendAndReceive takes care of confirmation return
-  }
-
-  hostGet = (req, res) => {
-
-  }
-
-  userHistory = async (req, res) => {
-    //console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
-
-    waitingJobs++;
-    var cwjy = { action: 'fetch', condition: 'value', type: 'http', queryObj: req.params };
-    var result = await connDBServer.sendAndReceive(cwjy);
-
-    res.writeHead(200);
-    for (var i = 0; i < result.length; i++) {
-      for (var key in result[i]) {
-        res.write(`key: ${key} value: ${result[i][key]}`);
-      }
-    }
-    res.end();
-    waitingJobs--;
-
-  }
-
-  userStatus = (req, res) => {
-  }
-
-  userFavo = (req, res) => {
   }
 
   lockActionProcess = (connectorSerial) => {
@@ -245,7 +231,6 @@ function APIController(server) {
     cpGet,
     cpPut,
     wsReq,
-    wsConf,
     hostGet
   }
 
