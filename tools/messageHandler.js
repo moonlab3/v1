@@ -41,7 +41,11 @@ makeQuery = (cwjy) => {
                WHERE bill.trxId = ${cwjy.trxCount};`;
       break;
     case 'StatusNotification':
-      query= `UPDATE connector SET status = '${cwjy.pdu.status}' WHERE connectorSerial = '${cwjy.connectorSerial}'`;
+      if(cwjy.userId)
+        query = `UPDATE connector SET status = '${cwjy.pdu.status}', occupyingUserId = '${cwjy.userId}'
+              WHERE connectorSerial = '${cwjy.connectorSerial}'`;
+      else
+        query = `UPDATE connector SET status = '${cwjy.pdu.status}' WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'StopTransaction':
       query= `UPDATE connector SET status = 'finishing' WHERE connectorSerial = '${cwjy.connectorSerial}'`;
@@ -70,7 +74,7 @@ makeQuery = (cwjy) => {
   return query;
 }
 
-makeMessage = (type, obj) => {
+makeConfirmationMessage = (type, obj) => {
   var buffer = `{"${type}": "${obj.req}", "connectorSerial": "${obj.connectorSerial}", "pdu": {  `;
   var pdu = obj.pdu;
   if(pdu?.idTagInfo)
@@ -105,5 +109,5 @@ makeMessage = (type, obj) => {
 
 module.exports = {
   makeQuery: makeQuery,
-  makeMessage: makeMessage
+  makeConfirmationMessage: makeConfirmationMessage
 }

@@ -1,4 +1,3 @@
-//const HTTPParser = require('http-parser-js');
 
 function APIController(server) {
   const connDBServer = require('../tools/socketIOWrapper')('apiServer');
@@ -7,14 +6,12 @@ function APIController(server) {
   var lockArray = [];
 
   hscanLoggedIn = async (req, res) => {
-    //console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
-
     ///////////////////////////////////////////
     // fetch booking occupying end
     // fetch charging occupying end
     // fetch charging status
     waitingJobs++;
-    var cwjy = { action: 'ConnectorInformation', connectorSerial: req.params.connectorSerial, userId: req.params.userId};
+    var cwjy = { action: "ConnectorInformation", connectorSerial: req.params.connectorSerial, userId: req.params.userId};
     var result = await connDBServer.sendAndReceive(cwjy);
 
     res.json(result);
@@ -26,63 +23,103 @@ function APIController(server) {
   hscanAction = async (req, res) => {
     waitingJobs++;
     var reqToCP = { connectorSerial: req.params.connectorSerial, pdu: { idTag: req.params.userId } };
-    var cwjy, result;
     ////////////////////////////////////////////
     // todo
-    // LED change for booked connector
     // send angry birds
     // cancel charging
+
+    /////////////////////////////////////////////////
+    // always check connector status. Right? No?
+    // further analysis is required
+    var cwjy = { action: "ConnectorCheck", userId: req.params.userId, connectorSerial: req.params.connectorSerial };
+    var result = await connDBServer.sendAndReceive(cwjy);
+    var response = { userId: req.params.userId, 
+                    result: { connectorSerial: req.params.connectorSerial, status: result.status} };
+
     switch (req.params.action) {
       case 'Charge':
-        cwjy = { action: 'ConnectorCheck', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
-        result = await connDBServer.sendAndReceive(cwjy);
-        if (result == 'Rejected') {
-          waitingJobs--;
-          res.json({
-            userId: req.params.userId, responseCode: "Rejected", results:
-              { connectors: [{ connectorSerial: req.params.connectorSerial, status: '' }] }
-          });
-          return;
-        }
+       console.log(`Charge:: at ${req.params.connectorSerial} status: ${result.status} occupied by ${result.occupyingUserId} requested by ${req.params.userId}`);
+       if(result.status == 'Available' || 
+       ((result.status == 'Preparing' || result.status == 'Reserved' || result.status == 'Finishing') 
+        && result.occupyingUserId == req.params.userId) ){
+          console.log('hscanaction: its ok to charge');
+       }
+       else {
+         response.responseCode = 'Rejected';
+         break;
+       }
 
         /////////////////////////////////////////////
-        // semaphore location
+        // semaphore location   further analysis is required
         lockActionProcess(req.params.connectorSerial);
 
         reqToCP.req = 'RemoteStartTransaction';
         result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
-        console.log('apiServer:hScanAction: ' + result);
         if (result.pdu.status == 'Accepted') {
-          cwjy = { action: 'StatusNotification', 
-                   userId: req.params.userId, connectorSerial: req.params.connectorSerial,
+          cwjy = { action: "StatusNotification", userId: req.params.userId, connectorSerial: req.params.connectorSerial,
                    pdu: {status: 'Preparing'} };
           connDBServer.sendOnly(cwjy);
         }
         else {
-          // console.log('RemoteStartTransaction Rejected');
+          response.responseCode = 'Rejected';
+          break;
         }
-        ////////////////////////////////////////////////////
+        response.responseCode = 'Accepted';
+        response.result.status = 'Preparing';
 
-        res.json({
-          userId: req.params.userId, responseCode: result.pdu.status, results:
-            { connectors: [{ connectorSerial: req.params.connectorSerial, status: '' }] }
-        });
-
+        /////////////////////////////////////////////
+        // semaphore location   further analysis is required
+        unlockActionProcess(req.params.connectorSerial);
         break;
       case 'Blink':
+        if (result.status == 'Reserved' && result.occupyingUerId == req.params.userId) {
+          reqToCP.req = 'ChangeLED';
+          result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
+          connCP.sendTo(req.params.connectorSerial, null, reqToCP);
+          response.responseCode = 'Accpeted';
+        }
+        else {
+          response.responseCode = 'Rejected';
+        }
         break;
       case 'Reserve':
+        if(result.status == 'Available') {
+          cwjy = { action: 'Reserve', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
+          result = await connDBServer.sendAndReceive(cwjy);
+          response.responseCode = 'Accpeted';
+        }
+        else {
+          response.responseCode = 'Rejected';
+        }
         break;
       case 'Angry':
+        if(result.status == 'Finishing') {
+          response.responseCode = 'Accpeted';
+        }
+        else {
+          response.responseCode = 'Rejected';
+        }
         break;
       case 'Alarm':
+        if(result.status == 'Charging') {
+          response.responseCode = 'Accpeted';
+        }
+        else {
+          response.responseCode = 'Rejected';
+        }
         break;
       case 'Report':
+        if(result.status == 'Charging') {
+          response.responseCode = "Accpeted";
+        }
+        else {
+          response.responseCode = "Rejected";
+        }
         break;
     }
 
+    res.json(response);
     waitingJobs--;
-    //unlockActionProcess(req.params.connectorSerial);
   }
 
   cpGet = (req, res, next) => {
@@ -109,7 +146,7 @@ function APIController(server) {
     //console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
 
     waitingJobs++;
-    var cwjy = { action: 'fetch', condition: 'value', type: 'http', queryObj: req.params };
+    var cwjy = { action: "ConnectorInformation", connectorSerial: req.params.connectorSerial, userId: req.params.userId};
     var result = await connDBServer.sendAndReceive(cwjy);
 
     res.writeHead(200);

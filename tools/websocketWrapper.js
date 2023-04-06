@@ -1,7 +1,6 @@
-// websocket server with OCPP 1.6 protocol
-const WebSocketServer = require('websocket').server;
 
 function WebSocketWrapper(server) {
+  const WebSocketServer = require('websocket').server;
   var wss;
   var socketArray = [];
   var callbackArray = [];
@@ -24,7 +23,7 @@ function WebSocketWrapper(server) {
         returnCallback(incoming.connectorSerial, incoming, null);
       }
       else {
-        console.log('wss:init:no req, no conf. wtf?');
+        console.log('wss:incoming: no req, no conf. wtf?');
       }
     });
 
@@ -33,10 +32,6 @@ function WebSocketWrapper(server) {
     });
 
   });
-
-  getServer = function () {
-    return wss;
-  }
 
   showAllConnections = function (comment) {
     socketArray.forEach((entry) => {
@@ -50,8 +45,6 @@ function WebSocketWrapper(server) {
       removeConnection(connectorSerial);
       var sock = { id: `${connectorSerial}`, conn: connection };
       socketArray.push(sock);
-      //showAllConnections('push');
-      //console.debug(`pushed into websocket array: ${connection.remoteAddresses}`);
     }
   }
 
@@ -66,13 +59,11 @@ function WebSocketWrapper(server) {
 
   sendTo = function (connectorSerial, connection, data) {
     if (connectorSerial == '') {
-      //connection.send(messageHandler.makeMessage(type, data));
       connection.send(JSON.stringify(data));
     }
     else {
       var found = socketArray.find(({ id }) => id == connectorSerial);
       if (found) {
-        //found.conn.send(messageHandler.makeMessage(type, data));
         found.conn.send(JSON.stringify(data));
         return true;
       }
@@ -84,11 +75,9 @@ function WebSocketWrapper(server) {
   }
 
   sendAndReceive = function (connectorSerial, data) {
-    //console.log('sendAndReceive:::: ' + JSON.stringify(data));
     sendTo(connectorSerial, null, data);
     return new Promise((resolve, reject) => {
       enlistCallback(connectorSerial, (result) => {
-        //console.log('sendAndReceive received::::' + JSON.stringify(result));
         delistCallback(connectorSerial);
         resolve(result);
       });
@@ -126,7 +115,6 @@ function WebSocketWrapper(server) {
   }
 
   const websocketWrapper = {
-    getServer,
     storeConnection,
     removeConnection,
     sendTo,

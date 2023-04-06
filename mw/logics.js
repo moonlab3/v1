@@ -2,32 +2,25 @@
 function DBController (dbms) {
   const messageHandler = require('../tools/messageHandler');
   const dbConnector = require('../tools/dbConnector')(dbms);
-  var dbSpeedAvg = 0, trxCount = 0;
+  var dbSpeedAvg = 0, trxCount = 0, requestCount = 0;
 
   preProcess = (event, cwjy, callback) => {
     //console.log(`dbServer:preProcess: event: ${event}, cwjy: ${JSON.stringify(cwjy)}`);
   }
 
   showPerformance = () => {
-    console.log(`dbServer:: total charging transactions: ${trxCount}, average processing time(ms): ${dbSpeedAvg}`);
+    console.log(`dbServer:: total transactions: ${requestCount}, average processing time(ms): ${dbSpeedAvg}`);
   }
   noReturn = (cwjy) => {
 
-    switch (cwjy.action) {
-      case 'Charge':
-        console.log('logics: cwjy.action is Charge');
-        //cwjy.trxCount = trxCount++;
-        // this will be deprecated
-        break;
-      case 'MeterValues':
-        break;
-    }
+    requestCount++;
     var query = messageHandler.makeQuery(cwjy);
     var result = dbConnector.submitSync(query);
-    console.log('dbServer:noReturn: result: ' + JSON.stringify(result));
+    //console.log('dbServer:noReturn: result: ' + JSON.stringify(result));
   }
 
   withReturn = async (cwjy, callback) => {
+    requestCount++;
     var returnValue;
     if(cwjy.action == 'StartTransaction')
       cwjy.trxCount = trxCount++;
@@ -48,22 +41,16 @@ function DBController (dbms) {
         returnValue = result[0];
         break;
       case 'ConnectorCheck':                                          // DONE DONE DONE DONE 
-        if (result[0].status == 'available' || result[0].status == 'preparing' || result[0].status == 'finishing')
-          returnValue = 'Accepted';
-        else if (result[0].status == 'reserved' && result[0].occupyingUserId == cwjy.userId)
-          returnValue = 'Accepted';
-        else
-          returnValue = 'Rejected';
+        returnValue = {status: result[0].status, occupyingUserId: result[0].occupyingUserId};
         break;
-
       case 'Authorize':                                               // DONE DONE DONE DONE
         temp.pdu = { idTagInfo: { status: result[0].authStatus } };
-        returnValue = messageHandler.makeMessage('conf', temp);
+        returnValue = messageHandler.makeConfirmationMessage('conf', temp);
         break;
       case 'StartTransaction':                                        // DONE DONE DONE DONE
         temp.pdu = {transionId: cwjy.trxCount, idTagInfo: {status: "Accepted"}};
       case 'StopTransaction':                                         // DONE DONE DONE DONE
-        returnValue = messageHandler.makeMessage('conf', temp);
+        returnValue = messageHandler.makeConfirmationMessage('conf', temp);
         break;
       case 'StatusNotification':
         break;
@@ -78,7 +65,7 @@ function DBController (dbms) {
           if (!temp)
             temp.pdu.status = "Rejected";
         }
-        returnValue = messageHandler.makeMessage('conf', temp);
+        returnValue = messageHandler.makeConfirmationMessage('conf', temp);
         break;
     }
 

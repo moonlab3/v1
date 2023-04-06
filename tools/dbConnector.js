@@ -16,7 +16,6 @@ function DBConnector(dbms) {
   });
 
   submitSync = (query) => {
-  //async function submitSync (query) {
     if (!query)
       return null;
     return new Promise((resolve, reject) => {
@@ -31,7 +30,6 @@ function DBConnector(dbms) {
         trxCount++;
         dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
         console.log(`dbConnector:submitSync: success with ${res.length} records, fetched in ${end - start}ms. average: ${dbSpeedAvg}`);
-        //console.log(res);
         resolve(res);
       });
     });
