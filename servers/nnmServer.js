@@ -1,8 +1,7 @@
-const connDBServer = require('../tools/socketIOWrapper')('nnmServer');
-
 const config = require('config');
 const dbms = config.get('dbms');
 
+const connDBServer = require('../tools/socketIOWrapper')('nnmServer');
 const dbConnector = require('../tools/dbConnector')(dbms);
 
 function init() {

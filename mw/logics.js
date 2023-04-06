@@ -16,7 +16,6 @@ function DBController (dbms) {
     requestCount++;
     var query = messageHandler.makeQuery(cwjy);
     var result = dbConnector.submitSync(query);
-    //console.log('dbServer:noReturn: result: ' + JSON.stringify(result));
   }
 
   withReturn = async (cwjy, callback) => {
