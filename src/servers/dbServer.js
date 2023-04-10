@@ -15,9 +15,9 @@ process.title = process.argv[2];
 io.of('apiServer').on('connection', (socket) => {
   console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
   
-  socket.onAny(controller.preProcess);
   socket.on('withReturn', controller.withReturn);
   socket.on('noReturn', controller.noReturn);
+  socket.onAny(controller.preProcess);
 
 });
 

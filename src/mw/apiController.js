@@ -22,7 +22,7 @@ function APIController(server) {
 
   hscanAction = async (req, res) => {
     waitingJobs++;
-    var reqToCP = { connectorSerial: req.params.connectorSerial, pdu: { idTag: req.params.userId } };
+    var reqToCP = { connectorSerial: req.params.connectorSerial };
     ////////////////////////////////////////////
     // todo
     // send angry birds
@@ -54,6 +54,7 @@ function APIController(server) {
         lockActionProcess(req.params.connectorSerial);
 
         reqToCP.req = 'RemoteStartTransaction';
+        reqToCP.pdu = {idTag: req.params.userId};
         result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
         if (result.pdu.status == 'Accepted') {
           cwjy = { action: "StatusNotification", userId: req.params.userId, connectorSerial: req.params.connectorSerial,
@@ -74,19 +75,28 @@ function APIController(server) {
       case 'Blink':
         if (result.status == 'Reserved' && result.occupyingUerId == req.params.userId) {
           reqToCP.req = 'ChangeLED';
+          reqToCP.pdu = { vendorId: 'com.hclab', connectorId: result.connectorId };
           result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
           connCP.sendTo(req.params.connectorSerial, null, reqToCP);
-          response.responseCode = 'Accpeted';
+          response.responseCode = 'Accepted';
         }
         else {
           response.responseCode = 'Rejected';
         }
         break;
+      //////////////////////////////////////////////////////////////////////////
+      // DataTransfer for Reserve and ChangeLED
+      // DataTransfer for Reserve and ChangeLED
+      // DataTransfer for Reserve and ChangeLED
+      // DataTransfer for Reserve and ChangeLED
       case 'Reserve':
         if(result.status == 'Available') {
           cwjy = { action: 'Reserve', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
+          reqToCP.req = 'DataTransfer';
+          reqToCP.pdu = 
+          connCP.sendTo(req.params.connectorSerial, null, reqToCP);
           result = await connDBServer.sendAndReceive(cwjy);
-          response.responseCode = 'Accpeted';
+          response.responseCode = 'Accepted';
         }
         else {
           response.responseCode = 'Rejected';
@@ -94,7 +104,9 @@ function APIController(server) {
         break;
       case 'Angry':
         if(result.status == 'Finishing') {
-          response.responseCode = 'Accpeted';
+          cwjy = { action: 'Angry', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
+          result = await connDBServer.sendAndReceive(cwjy);
+          response.responseCode = 'Accepted';
         }
         else {
           response.responseCode = 'Rejected';
@@ -102,7 +114,7 @@ function APIController(server) {
         break;
       case 'Alarm':
         if(result.status == 'Charging') {
-          response.responseCode = 'Accpeted';
+          response.responseCode = 'Accepted';
         }
         else {
           response.responseCode = 'Rejected';
@@ -110,7 +122,7 @@ function APIController(server) {
         break;
       case 'Report':
         if(result.status == 'Charging') {
-          response.responseCode = "Accpeted";
+          response.responseCode = "Accepted";
         }
         else {
           response.responseCode = "Rejected";

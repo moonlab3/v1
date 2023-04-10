@@ -13,7 +13,7 @@ function keyin() {
   var connser = process.argv[3];
 
   if (target == '' || connser == '') {
-    console.log('usage: wstest.js {target} {connector} {user}');
+    console.log('usage: wstest.js {target} {connector} {connectorId} {user}');
     process.exit();
   }
 
@@ -27,7 +27,7 @@ function keyin() {
     client.connect('wss://10.20.20.28:3001', 'hclab-protocol');
   }
   else {
-    console.log('usage: wstest.js {target} {connector} {user}');
+    console.log('usage: wstest.js {target} {connector} {connectorId} {user}');
     process.exit();
   }
 }
@@ -36,7 +36,8 @@ keyin();
 client.on('connect', (connection) => {
   var repeatCount = 0;
   var connser = process.argv[3];
-  var user = process.argv[4];
+  var connid = process.argv[4];
+  var user = process.argv[5];
 
   connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", 
         "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "test", "chargePointId": 1111}}`);
@@ -45,6 +46,8 @@ client.on('connect', (connection) => {
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
     switch (String(input)) {
+      case 'list\n':
+        console.log('auth heart start stop avail reserve meter show res accept reject repeat');
       case 'auth\n':
         connection.send(`{"req":"Authorize", "connectorSerial": "${connser}", "pdu":{"idTag":"${user}"}}`);
         break;
@@ -59,12 +62,16 @@ client.on('connect', (connection) => {
         connection.send(`{"req":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId":9983, 
                           "meterStop":393, "timeStamp": ${Date.now()}, "reason": "whatever"}}`);
         break;
-      case 'status\n':
+      case 'avail\n':
+        connection.send(`{"req":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":${connid},
+                          "errorCode":"error001", "status":"Available", "timeStamp": ${Date.now()}}}`);
+        break;
+      case 'reserve\n':
         connection.send(`{"req":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":2,
                          "errorCode":"error001", "status":"Reserved", "timeStamp": ${Date.now()}}}`);
         break;
       case 'meter\n':
-        connection.send(`{"req": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": 2, 
+        connection.send(`{"req": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": ${connid}, 
                         "meterValue": {"timeStamp": "${Date.now()}", "transactionId": 123, "sampledValue": {"value":383.2}}}}`);
         break;
       case 'show\n':

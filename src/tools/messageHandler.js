@@ -4,54 +4,60 @@ makeQuery = (cwjy) => {
   switch (cwjy.action) {
     case 'ConnectorCheck':                                                // DONE DONE DONE DONE
     case 'ConnectorInformation':                                          // DONE DONE DONE DONE
-      query = `SELECT status, occupyingUserId, occupyingEnd FROM connector 
+      query = `SELECT status, occupyingUserId, occupyingEnd, connectorId FROM connector 
               WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
-    case 'Charge':
-      break;
-    case 'Reserve':
+    case 'Reserve':                                                       // DONE DONE DONE DONE
+      query = `UPDATE connector SET status = 'Reserved', occupyingUserId = '${cwjy.userId}', occupyingEnd = ${Date.now()} + 900
+               WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'Angry':
+      //query = 'INSERT INTO angry (recipientId, senderId) VALUES ('${cwjy.}
+      query = `SELECT endPoint FROM user LEFT JOIN connector 
+               ON connector.occupyingUserId = user.userId
+               WHERE connector.connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'Alarm':
       break;
     case 'Report':
       break;
     case 'BootNotification':                                                // DONE DONE DONE DONE
-      query = `SELECT connectorSerial, connectorId FROM connector INNER JOIN chargepoint 
-              ON chargepoint.vendor = '${cwjy.pdu.chargePointVendor}' AND chargepoint.model = '${cwjy.pdu.chargePointModel}'
-              WHERE connector.chargePointId = chargepoint.chargePointId`;
+      query = `SELECT connectorSerial, connectorId FROM connector LEFT JOIN chargepoint 
+              ON connector.chargePointId = chargepoint.chargePointId
+              WHERE chargepoint.vendor = '${cwjy.pdu.chargePointVendor}' AND chargepoint.model = '${cwjy.pdu.chargePointModel}'`;
       break;
     case 'Authorize':                                                       // DONE DONE DONE DONE
       query= `SELECT authStatus FROM user WHERE userId = '${cwjy.pdu.idTag}'`;
       break;
     case 'HeartBeat':                                                       // DONE DONE DONE DONE
       query= `UPDATE connector SET lastHeartbeat = CURRENT_TIMESTAMP 
-                  WHERE connectorSerial = '${cwjy.connectorSerial}'`;
+              WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'MeterValues':
       break;
     case 'StartTransaction':                                                // DONE DONE DONE DONE
-      query = `UPDATE connector SET status = 'charging', occupyingUserId = '${cwjy.userId}' 
+      query = `UPDATE connector SET status = 'Charging', occupyingUserId = '${cwjy.userId}' 
                WHERE connectorSerial = '${cwjy.connectorSerial}';
                INSERT INTO bill (started, connectorSerial, userId, trxId) 
                VALUES (CURRENT_TIMESTAMP, '${cwjy.connectorSerial}', ${cwjy.userId}, ${cwjy.trxCount});
-               UPDATE bill INNER JOIN connector ON bill.connectorSerial = connector.connectorSerial
+               UPDATE bill LEFT JOIN connector ON bill.connectorSerial = connector.connectorSerial
                SET bill.chargePointId = connector.chargePointId, bill.ownerId = connector.ownerId
                WHERE bill.trxId = ${cwjy.trxCount};`;
       break;
     case 'StatusNotification':
       if(cwjy.userId)
         query = `UPDATE connector SET status = '${cwjy.pdu.status}', occupyingUserId = '${cwjy.userId}'
-              WHERE connectorSerial = '${cwjy.connectorSerial}'`;
+                 WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       else
-        query = `UPDATE connector SET status = '${cwjy.pdu.status}' WHERE connectorSerial = '${cwjy.connectorSerial}'`;
+        query = `UPDATE connector SET status = '${cwjy.pdu.status}', occupyingUserId = null, occupyingEnd = null
+                 WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'StopTransaction':
-      query= `UPDATE connector SET status = 'finishing' WHERE connectorSerial = '${cwjy.connectorSerial}'`;
+      query= `UPDATE connector SET status = 'Finishing' WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'RemoteStartTransaction':
-      query = `UPDATE connector SET status = 'Charging' WHERE connectorSerial = '${cwjy.connectorSerial}`;
+      query = `UPDATE connector SET status = 'Preparing', occupyingUserId = '${cwjy.userId}'
+               WHERE connectorSerial = '${cwjy.connectorSerial}`;
       break;
     case 'RemoteStopTransaction':
       query = `UPDATE connector SET status = 'Finishing' WHERE connectorSerial = '${cwjy.connectorSerial}`;
@@ -61,12 +67,6 @@ makeQuery = (cwjy) => {
     case 'ClearCache':
     case 'DataTransfer':
     case 'GetConfiguration':
-      break;
-    case 'RemoteStartTransaction':
-      query = `UPDATE connector SET status = 'charging' WHERE connectorSerial = '${cwjy.connectorSerial}`;
-      break;
-    case 'RemoteStopTransaction':
-      query = `UPDATE connector SET status = 'charging' WHERE connectorSerial = '${cwjy.connectorSerial}`;
       break;
     case 'Reset':
       break;

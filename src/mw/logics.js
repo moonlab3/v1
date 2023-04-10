@@ -5,13 +5,14 @@ function DBController (dbms) {
   var dbSpeedAvg = 0, trxCount = 0, requestCount = 0;
 
   preProcess = (event, cwjy, callback) => {
-    //console.log(`dbServer:preProcess: event: ${event}, cwjy: ${JSON.stringify(cwjy)}`);
+    console.log(`dbServer:preProcess: event: ${event}, cwjy: ${JSON.stringify(cwjy)}`);
   }
 
   showPerformance = () => {
     console.log(`dbServer:: total transactions: ${requestCount}, average processing time(ms): ${dbSpeedAvg}`);
   }
   noReturn = (cwjy) => {
+    console.log(`dbServer:noReturn: cwjy: ${JSON.stringify(cwjy)}`);
 
     requestCount++;
     var query = messageHandler.makeQuery(cwjy);
@@ -36,19 +37,18 @@ function DBController (dbms) {
     // result message making from here
     var temp = { req: cwjy.action, connectorSerial: cwjy.connectorSerial, pdu: {} };
     switch (cwjy.action) {
+      case 'Angry':
       case 'ConnectorInformation':
-        returnValue = result[0];
-        break;
       case 'ConnectorCheck':                                          // DONE DONE DONE DONE 
-        returnValue = {status: result[0].status, occupyingUserId: result[0].occupyingUserId};
+        returnValue = result[0];
         break;
       case 'Authorize':                                               // DONE DONE DONE DONE
         temp.pdu = { idTagInfo: { status: result[0].authStatus } };
         returnValue = messageHandler.makeConfirmationMessage('conf', temp);
         break;
       case 'StartTransaction':                                        // DONE DONE DONE DONE
-        temp.pdu = {transionId: cwjy.trxCount, idTagInfo: {status: "Accepted"}};
       case 'StopTransaction':                                         // DONE DONE DONE DONE
+        temp.pdu = {transionId: cwjy.trxCount, idTagInfo: {status: "Accepted"}};
         returnValue = messageHandler.makeConfirmationMessage('conf', temp);
         break;
       case 'StatusNotification':
