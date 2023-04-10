@@ -16,7 +16,7 @@ function APIController(server) {
 
     res.json(result);
     res.end();
-    console.log('apiController:hscan: ' + result);
+    console.log('apiController:hscan: ' + JSON.stringify(result));
     waitingJobs--;
   }
 

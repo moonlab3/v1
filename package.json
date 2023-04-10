@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "hcLab v1",
   "scripts": {
-    "start": "node servers/dbServer.js hcharge & node servers/apiServer.js hcharge & node servers/nnmServer.js hcharge",
+    "start": "node src/servers/dbServer.js hcharge & node src/servers/apiServer.js hcharge & node src/servers/nnmServer.js hcharge",
     "stop": "pkill hcharge"
   },
   "repository": {

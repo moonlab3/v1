@@ -18,7 +18,7 @@ makeQuery = (cwjy) => {
     case 'Report':
       break;
     case 'BootNotification':                                                // DONE DONE DONE DONE
-      query= `SELECT connectorSerial, connectorId FROM connector INNER JOIN chargepoint 
+      query = `SELECT connectorSerial, connectorId FROM connector INNER JOIN chargepoint 
               ON chargepoint.vendor = '${cwjy.pdu.chargePointVendor}' AND chargepoint.model = '${cwjy.pdu.chargePointModel}'
               WHERE connector.chargePointId = chargepoint.chargePointId`;
       break;
