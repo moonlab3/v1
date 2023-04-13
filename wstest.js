@@ -13,7 +13,7 @@ function keyin() {
   var connser = process.argv[3];
 
   if (target == '' || connser == '') {
-    console.log('usage: wstest.js {target} {connector} {connectorId} {user}');
+    console.log('usage: wstest.js {target} {connector} {connectorId}');
     process.exit();
   }
 
@@ -27,7 +27,7 @@ function keyin() {
     client.connect('wss://10.20.20.28:3001', 'hclab-protocol');
   }
   else {
-    console.log('usage: wstest.js {target} {connector} {connectorId} {user}');
+    console.log('usage: wstest.js {target} {connector} {connectorId}');
     process.exit();
   }
 }
@@ -37,66 +37,75 @@ client.on('connect', (connection) => {
   var repeatCount = 0;
   var connser = process.argv[3];
   var connid = process.argv[4];
-  var user = process.argv[5];
 
   connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", 
-        "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "test", "chargePointId": 1111}}`);
+        "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "hclab" }}`);
         /////////////////////////////////////////////// check cpID and connectorSerial
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
-    switch (String(input)) {
-      case 'list\n':
+    const command = String(input).slice(0,input.length-1).split(" ");
+    //console.log(`${command[0]}|${command[1]}|${command[2]}`);
+    switch (command[0]) {
+      case 'list':
         console.log('auth heart start stop avail reserve meter show res accept reject repeat');
-      case 'auth\n':
-        connection.send(`{"req":"Authorize", "connectorSerial": "${connser}", "pdu":{"idTag":"${user}"}}`);
+      case 'auth':
+        if(command[1])
+          connection.send(`{"req":"Authorize", "connectorSerial": "${connser}", "pdu":{"idTag":"${command[1]}"}}`);
+        else
+          console.log('usage: auth {userid}');
         break;
-      case 'heart\n':
+      case 'heart':
         connection.send(`{"req":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
-      case 'start\n':
-        connection.send(`{"req":"StartTransaction", "connectorSerial":"${connser}", "pdu":{"connectorId":3, 
-                          "idTag":"${user}", "meterStart": 234, "timeStamp": ${Date.now()}, "bulkSoc": 12.1, "fullSoc": 72.7 }}`);
+      case 'start':
+        if(command[1])
+          connection.send(`{"req":"StartTransaction", "connectorSerial":"${connser}", "pdu":{"connectorId": ${connid}, 
+                          "idTag":"${command[1]}", "meterStart": 234, "timeStamp": ${Date.now()}, "bulkSoc": 12.1, "fullSoc": 72.7 }}`);
+        else
+          console.log('usage: start {userid}');
         break;
-      case 'stop\n':
-        connection.send(`{"req":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId":9983, 
+      case 'stop':
+        connection.send(`{"req":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId": ${command[1]}, 
                           "meterStop":393, "timeStamp": ${Date.now()}, "reason": "whatever"}}`);
         break;
-      case 'avail\n':
-        connection.send(`{"req":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":${connid},
-                          "errorCode":"error001", "status":"Available", "timeStamp": ${Date.now()}}}`);
+      case 'status':
+        if(command[1])
+          connection.send(`{"req":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":${connid},
+                            "errorCode":"error001", "status":"${command[1]}", "timeStamp": ${Date.now()}}}`);
+        else
+          console.log('usage: status {StatusCode}');
         break;
-      case 'reserve\n':
-        connection.send(`{"req":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":2,
-                         "errorCode":"error001", "status":"Reserved", "timeStamp": ${Date.now()}}}`);
+      case 'meter':
+        if(command[1])
+          connection.send(`{"req": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": ${connid}, 
+                        "meterValue": {"timeStamp": "${Date.now()}", "transactionId": ${command[1]}, "sampledValue": {"value":${command[2]}}}}}`);
+        else
+          console.log('usage: meter {trxId} {meerValue}');
         break;
-      case 'meter\n':
-        connection.send(`{"req": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": ${connid}, 
-                        "meterValue": {"timeStamp": "${Date.now()}", "transactionId": 123, "sampledValue": {"value":383.2}}}}`);
-        break;
-      case 'show\n':
+      case 'show':
         connection.send(`{"req":"ShowArray", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
-      case 'res\n':
-        connection.send(`{"conf":"RemoteWhatever", "connectorSerial":"${connser}", "pdu":{}}`);
+      case 'response':
+        connection.send(`{"conf":"${command[1]}", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
-      case 'accept\n':
+      case 'accept':
         connection.send(`{"conf":"RemoteStartTransaction", "connectorSerial":"${connser}", "pdu":{"status":"Accepted"}}`);
         break;
-      case 'reject\n':
+      case 'reject':
         connection.send(`{"conf":"RemoteStartTransaction", "connectorSerial":"${connser}", "pdu":{"status":"Rejected"}}`);
         break;
-      case 'repeat\n':
+      case 'repeat':
         repeatCount = 0;
-        repeat();
+        repeat(Number(command[1]));
         break;
-      case 'quit\n':
+      case 'quit':
         connection.send(`{"req":"Quit", "connectorSerial":"${connser}", "pdu":{}}`);
         process.exit();
     }
 
-    function repeat() {
-      if (repeatCount < 10)
+    function repeat(count) {
+      if (repeatCount < count)
         setTimeout(repeat, 1000);
       connection.send(`{"req":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
       repeatCount++;

@@ -14,6 +14,18 @@ function DBConnector(dbms) {
     if (err) throw err;
     console.error(`dbConnector:init: mySQL connected. ${new Date(Date.now())} port: ${dbms.port}`);
   });
+  submit = (query) => {
+    if (!query)
+    return null;
+    dbConn.query(query, (err, res) => {
+      if(err) {
+        console.log('dbConnector:submit: error ' + err);
+      }
+      else {
+        console.log('dbConnector:submit: success ' + res);
+      }
+    });
+  }
 
   submitSync = (query) => {
     if (!query)
@@ -36,6 +48,7 @@ function DBConnector(dbms) {
   }
 
   const dbConnector = {
+    submit,
     submitSync
   }
 

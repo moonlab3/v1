@@ -74,9 +74,9 @@ function APIController(server) {
         break;
       case 'Blink':
         if (result.status == 'Reserved' && result.occupyingUerId == req.params.userId) {
-          reqToCP.req = 'ChangeLED';
-          reqToCP.pdu = { vendorId: 'com.hclab', connectorId: result.connectorId };
-          result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
+          reqToCP.req = 'DataTransfer';
+          reqToCP.pdu = { vendorId: 'com.hclab', connectorId: result.connectorId, data: 'blink'};
+          //result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
           connCP.sendTo(req.params.connectorSerial, null, reqToCP);
           response.responseCode = 'Accepted';
         }
@@ -93,7 +93,7 @@ function APIController(server) {
         if(result.status == 'Available') {
           cwjy = { action: 'Reserve', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
           reqToCP.req = 'DataTransfer';
-          reqToCP.pdu = 
+          reqToCP.pdu = {vendorId: 'com.hclab', connectorId: result.connectorId, data: 'yellow'};
           connCP.sendTo(req.params.connectorSerial, null, reqToCP);
           result = await connDBServer.sendAndReceive(cwjy);
           response.responseCode = 'Accepted';
@@ -101,6 +101,8 @@ function APIController(server) {
         else {
           response.responseCode = 'Rejected';
         }
+        break;
+      case 'Cancel':
         break;
       case 'Angry':
         if(result.status == 'Finishing') {
@@ -158,15 +160,18 @@ function APIController(server) {
     //console.log(`hscan:get::http ip: ${req.ip}:${req.header}`);
 
     waitingJobs++;
-    var cwjy = { action: "ConnectorInformation", connectorSerial: req.params.connectorSerial, userId: req.params.userId};
+    var cwjy = { action: "UserHistory", userId: req.params.userId};
     var result = await connDBServer.sendAndReceive(cwjy);
 
-    res.writeHead(200);
+    //res.writeHead(200);
+    res.json(result);
+    /*
     for (var i = 0; i < result.length; i++) {
       for (var key in result[i]) {
         res.write(`key: ${key} value: ${result[i][key]}`);
       }
     }
+    */
     res.end();
     waitingJobs--;
 
@@ -182,10 +187,10 @@ function APIController(server) {
   wsReq = async (req, conn) => {
     var cwjy;
 
-    var conf = { req: req.req, connectorSerial: req.connectorSerial, pdu: {} };
+    var conf = { conf: req.req, connectorSerial: req.connectorSerial, pdu: {} };
     switch (req.req) {
       case 'BootNotification':
-        connCP.storeConnection(req.connectorSerial, conn);
+        connCP.storeConnection(req.connectorSerial, conn, true);
         conf.pdu = { currentTime: Date.now(), interval: 300 };
         cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu };
         conf = await connDBServer.sendAndReceive(cwjy);
@@ -193,7 +198,7 @@ function APIController(server) {
       ////////////////////////////////////////////////////////////////
       // almost same tasks
       case 'HeartBeat':
-        connCP.storeConnection(req.connectorSerial, conn);
+        connCP.storeConnection(req.connectorSerial, conn, false);
         req.pdu.currentTime = Date.now();
         conf.pdu = { currentTime: Date.now() };
       case 'StatusNotification':
@@ -203,7 +208,7 @@ function APIController(server) {
         break;
       case 'Authorize':
         cwjy = { action: req.req, userId: req.pdu.idTag, connectorSerial: req.connectorSerial, pdu: req.pdu };
-        conf = connDBServer.sendAndReceive(cwjy);
+        conf = await connDBServer.sendAndReceive(cwjy);
         break;
       case 'StartTransaction':
         cwjy = { action: req.req, userId: req.pdu.idTag, connectorSerial: req.connectorSerial,

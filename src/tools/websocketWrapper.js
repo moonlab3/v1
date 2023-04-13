@@ -39,9 +39,9 @@ function WebSocketWrapper(server) {
     });
   }
 
-  storeConnection = function (connectorSerial, connection) {
+  storeConnection = function (connectorSerial, connection, forceRemove) {
     var found = socketArray.find(({ id }) => id == connectorSerial);
-    if (!found || found.conn.socket.readyState > 1) {
+    if (!found || found.conn.socket.readyState > 1 || forceRemove) {
       removeConnection(connectorSerial);
       var sock = { id: `${connectorSerial}`, conn: connection };
       socketArray.push(sock);
@@ -58,6 +58,7 @@ function WebSocketWrapper(server) {
   }
 
   sendTo = function (connectorSerial, connection, data) {
+    //console.log(`websocketWrapper:sendTo: ${JSON.stringify(data)}`);
     if (connectorSerial == '') {
       connection.send(JSON.stringify(data));
     }

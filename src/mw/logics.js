@@ -3,9 +3,10 @@ function DBController (dbms) {
   const messageHandler = require('../tools/messageHandler');
   const dbConnector = require('../tools/dbConnector')(dbms);
   var dbSpeedAvg = 0, trxCount = 0, requestCount = 0;
+  var onGoingTrx = [];
 
   preProcess = (event, cwjy, callback) => {
-    console.log(`dbServer:preProcess: event: ${event}, cwjy: ${JSON.stringify(cwjy)}`);
+    //console.log(`dbServer:preProcess: event: ${event}, cwjy: ${JSON.stringify(cwjy)}`);
   }
 
   showPerformance = () => {
@@ -15,18 +16,36 @@ function DBController (dbms) {
     console.log(`dbServer:noReturn: cwjy: ${JSON.stringify(cwjy)}`);
 
     requestCount++;
-    var query = messageHandler.makeQuery(cwjy);
-    var result = dbConnector.submitSync(query);
+    const query = messageHandler.makeQuery(cwjy);
+    dbConnector.submit(query);
+  }
+  putnReturnTrxId = (cwjy) => {
+    const trx = { usernConnector: cwjy.connectorSerial + cwjy.userId, trxId: trxCount++};
+    console.log(`returntrxId:usernconnector:  ${trx.usernConnector} trxId: ${trx.trxId}`);
+    onGoingTrx.push(trx);
+    return trx.trxId;
+  }
+  getTrxId = (cwjy) => {
+    const found = onGoingTrx.find(({usernConnector}) => usernConnector == cwjy.connectorSerial + cwjy.userId);
+    if(!found)
+      return -1;
+    console.log(`getTrxId:usernconnector:  ${found.usernConnector} trxId: ${found.trxId}`);
+    return found.trxId;
   }
 
   withReturn = async (cwjy, callback) => {
     requestCount++;
     var returnValue;
-    if(cwjy.action == 'StartTransaction')
-      cwjy.trxCount = trxCount++;
+    if(cwjy.action == 'StartTransaction') {
+      cwjy.trxId = putnReturnTrxId(cwjy);
+    }
+    else if(cwjy.action == 'StopTransaction') {
+      //cwjy.trxId = getTrxId(cwjy);
+      cwjy.trxId = cwjy.pdu.transionId;
+    }
     var query = messageHandler.makeQuery(cwjy);
     var result = await dbConnector.submitSync(query);
-    console.log('withReturn result: ' + result + 'stringify ' + JSON.stringify(result));
+    console.log('withReturn result: ' + JSON.stringify(result));
     ////////////////////////////
     // todo
     // RemoteStartTransaction
@@ -35,8 +54,11 @@ function DBController (dbms) {
 
     ///////////////////////////////////////////
     // result message making from here
-    var temp = { req: cwjy.action, connectorSerial: cwjy.connectorSerial, pdu: {} };
+    var temp = { conf: cwjy.action, connectorSerial: cwjy.connectorSerial, pdu: {} };
     switch (cwjy.action) {
+      case 'UserHistory':
+        returnValue = result;
+        break;
       case 'Angry':
       case 'ConnectorInformation':
       case 'ConnectorCheck':                                          // DONE DONE DONE DONE 
@@ -44,12 +66,14 @@ function DBController (dbms) {
         break;
       case 'Authorize':                                               // DONE DONE DONE DONE
         temp.pdu = { idTagInfo: { status: result[0].authStatus } };
-        returnValue = messageHandler.makeConfirmationMessage('conf', temp);
+        //returnValue = messageHandler.makeConfirmationMessage('conf', temp);
+        returnValue = temp;
         break;
       case 'StartTransaction':                                        // DONE DONE DONE DONE
       case 'StopTransaction':                                         // DONE DONE DONE DONE
-        temp.pdu = {transionId: cwjy.trxCount, idTagInfo: {status: "Accepted"}};
-        returnValue = messageHandler.makeConfirmationMessage('conf', temp);
+        temp.pdu = {transionId: cwjy.trxId, idTagInfo: {status: "Accepted"}};
+        returnValue = temp;
+        //returnValue = messageHandler.makeConfirmationMessage('conf', temp);
         break;
       case 'StatusNotification':
         break;
@@ -64,7 +88,8 @@ function DBController (dbms) {
           if (!temp)
             temp.pdu.status = "Rejected";
         }
-        returnValue = messageHandler.makeConfirmationMessage('conf', temp);
+        //returnValue = messageHandler.makeConfirmationMessage('conf', temp);
+        returnValue = temp;
         break;
     }
 
