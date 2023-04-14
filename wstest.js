@@ -45,7 +45,7 @@ function keyin() {
 keyin();
 
 client.on('connect', (connection) => {
-  var repeatCount = 0;
+  var repeatCount = 0, repeats = 0;
   var connser = process.argv[3];
   var connid = process.argv[4];
   var command;
@@ -109,8 +109,10 @@ client.on('connect', (connection) => {
         break;
       case 'repeat':
         repeatCount = 0;
-        if(command[1])
-          repeat(Number(command[1]));
+        repeats = Number(command[1]);
+        if(repeats > 0) {
+          repeat();
+        }
         else
           console.log('usage: repeat {repeat count}');
         break;
@@ -119,8 +121,8 @@ client.on('connect', (connection) => {
         process.exit();
     }
 
-    function repeat(count) {
-      if (repeatCount < count)
+    function repeat() {
+      if (repeatCount < repeats)
         setTimeout(repeat, 1000);
       connection.send(`{"req":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
       repeatCount++;

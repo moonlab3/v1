@@ -45,7 +45,8 @@ makeQuery = (cwjy) => {
                INSERT INTO bill (started, connectorSerial, userId, trxId) 
                VALUES (CURRENT_TIMESTAMP, '${cwjy.connectorSerial}', ${cwjy.userId}, ${cwjy.trxId});
                UPDATE bill LEFT JOIN connector ON bill.connectorSerial = connector.connectorSerial
-               SET bill.chargePointId = connector.chargePointId, bill.ownerId = connector.ownerId
+               SET bill.chargePointId = connector.chargePointId, bill.ownerId = connector.ownerId,
+               bill.bulkSoc = ${cwjy.bulkSoc}, bill.fullSoc = ${cwjy.fullSoc} 
                WHERE bill.trxId = ${cwjy.trxId};`;
       break;
     case 'StatusNotification':
