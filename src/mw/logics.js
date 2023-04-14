@@ -19,6 +19,8 @@ function DBController (dbms) {
     const query = messageHandler.makeQuery(cwjy);
     dbConnector.submit(query);
   }
+  //////////////////////////////////
+  // deprecate put and get trxid
   putnReturnTrxId = (cwjy) => {
     const trx = { usernConnector: cwjy.connectorSerial + cwjy.userId, trxId: trxCount++};
     console.log(`returntrxId:usernconnector:  ${trx.usernConnector} trxId: ${trx.trxId}`);
@@ -32,17 +34,20 @@ function DBController (dbms) {
     console.log(`getTrxId:usernconnector:  ${found.usernConnector} trxId: ${found.trxId}`);
     return found.trxId;
   }
+  /////////////////////////////////
 
   withReturn = async (cwjy, callback) => {
     requestCount++;
     var returnValue;
     if(cwjy.action == 'StartTransaction') {
-      cwjy.trxId = putnReturnTrxId(cwjy);
+      //cwjy.trxId = putnReturnTrxId(cwjy);
+      cwjy.trxId = trxCount++;
     }
     else if(cwjy.action == 'StopTransaction') {
       //cwjy.trxId = getTrxId(cwjy);
       cwjy.trxId = cwjy.pdu.transactionId;
     }
+
     var query = messageHandler.makeQuery(cwjy);
     var result = await dbConnector.submitSync(query);
     console.log('withReturn result: ' + JSON.stringify(result));

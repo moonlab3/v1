@@ -8,9 +8,20 @@ client.on('connectFailed', function(error) {
   console.log('Connect Error' + error.toString());
 });
 
+var endOfInput;
+
 function keyin() {
   var target = process.argv[2];
   var connser = process.argv[3];
+
+  if (process.platform == 'darwin') {
+    endOfInput = 1;
+    console.log('Running on MacOS');
+  }
+  else if (process.platform == 'win32') {
+    endOfInput = 2;
+    console.log('Running on Windows');
+  }
 
   if (target == '' || connser == '') {
     console.log('usage: wstest.js {target} {connector} {connectorId}');
@@ -45,14 +56,7 @@ client.on('connect', (connection) => {
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
-    if(process.platform == 'darwin') {
-      command = String(input).slice(0, input.length - 1).split(" ");
-      console.log('Running on MacOS');
-    }
-    else if(process.platform == 'win32') {
-      command = String(input).slice(0, input.length - 2).split(" ");
-      console.log('Running on Windows');
-    }
+    command = String(input).slice(0, input.length - endOfInput).split(" ");
     switch (command[0]) {
       case 'list':
         console.log('auth heart start stop avail reserve meter show res accept reject repeat');
@@ -74,38 +78,41 @@ client.on('connect', (connection) => {
           console.log('usage: start {userid}');
         break;
       case 'stop':
-        connection.send(`{"req":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId": ${command[1]}, 
+        if(command[1])
+          connection.send(`{"req":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId": ${command[1]}, 
                           "meterStop":393, "timeStamp": ${Date.now()}, "reason": "whatever"}}`);
+        else
+          console.log('usage: stop {transactionId}');
         break;
       case 'status':
         if(command[1])
           connection.send(`{"req":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":${connid},
                             "errorCode":"error001", "status":"${command[1]}", "timeStamp": ${Date.now()}}}`);
         else
-          console.log('usage: status {StatusCode}');
+          console.log('usage: status {Available Preparing Charging Finishing Reserved Unavailable}');
         break;
       case 'meter':
         if(command[1])
           connection.send(`{"req": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": ${connid}, 
                         "meterValue": {"timeStamp": "${Date.now()}", "transactionId": ${command[1]}, "sampledValue": {"value":${command[2]}}}}}`);
         else
-          console.log('usage: meter {trxId} {meerValue}');
+          console.log('usage: meter {trxId} {meterValue}');
         break;
       case 'show':
         connection.send(`{"req":"ShowArray", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
       case 'response':
-        connection.send(`{"conf":"${command[1]}", "connectorSerial":"${connser}", "pdu":{}}`);
-        break;
-      case 'accept':
-        connection.send(`{"conf":"RemoteStartTransaction", "connectorSerial":"${connser}", "pdu":{"status":"Accepted"}}`);
-        break;
-      case 'reject':
-        connection.send(`{"conf":"RemoteStartTransaction", "connectorSerial":"${connser}", "pdu":{"status":"Rejected"}}`);
+        if(command[1])
+          connection.send(`{"conf":"${command[1]}", "connectorSerial":"${connser}", "pdu":{"status": "${command[2]}"}}`);
+        else
+          console.log('usage: response {transaction name} {accept or reject}');
         break;
       case 'repeat':
         repeatCount = 0;
-        repeat(Number(command[1]));
+        if(command[1])
+          repeat(Number(command[1]));
+        else
+          console.log('usage: repeat {repeat count}');
         break;
       case 'quit':
         connection.send(`{"req":"Quit", "connectorSerial":"${connser}", "pdu":{}}`);

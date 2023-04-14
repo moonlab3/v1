@@ -59,7 +59,7 @@ function APIController(server) {
         if (result.pdu.status == 'Accepted') {
           cwjy = { action: "StatusNotification", userId: req.params.userId, connectorSerial: req.params.connectorSerial,
                    pdu: {status: 'Preparing'} };
-          connDBServer.sendOnly(cwjy);
+          result = await connDBServer.sendAndReceive(cwjy);
         }
         else {
           response.responseCode = 'Rejected';
