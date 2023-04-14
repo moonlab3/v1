@@ -58,7 +58,7 @@ makeQuery = (cwjy) => {
       break;
     case 'StopTransaction':
       query= `UPDATE connector SET status = 'Finishing' WHERE connectorSerial = '${cwjy.connectorSerial}';
-              UPDATE bill SET finished = CURRENT_TIMESTAMP WHERE trxId = '${cwjy.trxId}';`;
+              UPDATE bill SET finished = CURRENT_TIMESTAMP WHERE trxId = ${cwjy.trxId};`;
       break;
     case 'RemoteStartTransaction':
       query = `UPDATE connector SET status = 'Preparing', occupyingUserId = '${cwjy.userId}'

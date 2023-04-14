@@ -37,6 +37,7 @@ client.on('connect', (connection) => {
   var repeatCount = 0;
   var connser = process.argv[3];
   var connid = process.argv[4];
+  var command;
 
   connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", 
         "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "hclab" }}`);
@@ -44,11 +45,18 @@ client.on('connect', (connection) => {
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
-    const command = String(input).slice(0,input.length-1).split(" ");
-    //console.log(`${command[0]}|${command[1]}|${command[2]}`);
+    if(process.platform == 'darwin') {
+      command = String(input).slice(0, input.length - 1).split(" ");
+      console.log('Running on MacOS');
+    }
+    else if(process.platform == 'win32') {
+      command = String(input).slice(0, input.length - 2).split(" ");
+      console.log('Running on Windows');
+    }
     switch (command[0]) {
       case 'list':
         console.log('auth heart start stop avail reserve meter show res accept reject repeat');
+        break;
       case 'auth':
         if(command[1])
           connection.send(`{"req":"Authorize", "connectorSerial": "${connser}", "pdu":{"idTag":"${command[1]}"}}`);

@@ -41,7 +41,7 @@ function DBController (dbms) {
     }
     else if(cwjy.action == 'StopTransaction') {
       //cwjy.trxId = getTrxId(cwjy);
-      cwjy.trxId = cwjy.pdu.transionId;
+      cwjy.trxId = cwjy.pdu.transactionId;
     }
     var query = messageHandler.makeQuery(cwjy);
     var result = await dbConnector.submitSync(query);
