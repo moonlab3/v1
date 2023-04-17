@@ -1,8 +1,12 @@
 function init() {
-  var stdin = process.openStdin();
+  var date1 = new Date('04/17/2023 16:00:00');
+  var date2 = new Date('04/17/2023 15:59:00');
+  console.log(`${date1} - ${date2} = ${date1 - date2}`);
+  /*
   var test = [];
-  var empty = {};
   test.push({id:"wer", value:"dfgdf"});
+  var stdin = process.openStdin();
+  var empty = {};
   stdin.on('data', (msg) => {
     var idx = msg.slice(0, 3), value = msg.slice(3, 6);
     empty.id = String(idx);
@@ -12,7 +16,6 @@ function init() {
 
     console.log(`${JSON.stringify(empty)}`);
     
-    /*
     if(idx == "sho") {
       var i=0;
       while(test[i]) {
@@ -36,9 +39,9 @@ function init() {
         console.log(`pushed ${JSON.stringify(p)}`);
       }
     }
-    */
 
   });
+  */
 };
 
 function alarm(msg){

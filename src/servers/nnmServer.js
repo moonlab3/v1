@@ -3,20 +3,26 @@ const dbms = config.get('dbms');
 
 const connDBServer = require('../tools/socketIOWrapper')('nnmServer');
 const dbConnector = require('../tools/dbConnector')(dbms);
+const monitor = require('../mw/monitor')(dbConnector);
 
-function init() {
-  console.log('notification and monitoring server on.');
-
-  //updateRequest();
-}
-
-function updateRequest() {
-  cwjy = { action: 'admin', user: 'admin', connector: 'admin' };
+function updateRequest(cwjy) {
+  //cwjy = { action: 'admin', user: 'admin', connector: 'admin' };
+  //console.log('update Request: ' + JSON.stringify(cwjy));
   connDBServer.sendOnly(cwjy);
 
 }
 
+function init() {
+  console.log('notification and monitoring server on.');
+  monitor.registerSender(updateRequest);
+  setInterval(monitor.watch, 10000);
+
+}
+
+
 process.title = process.argv[2];
+process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
+process.env.NODE_APP_INSTANCE = 1;
 
 init();
 

@@ -12,6 +12,9 @@ function DBController (dbms) {
   showPerformance = () => {
     console.log(`dbServer:: total transactions: ${requestCount}, average processing time(ms): ${dbSpeedAvg}`);
   }
+  
+  ///////////////////////////////////
+  // deprecate noreturn
   noReturn = (cwjy) => {
     console.log(`dbServer:noReturn: cwjy: ${JSON.stringify(cwjy)}`);
 
@@ -19,38 +22,22 @@ function DBController (dbms) {
     const query = messageHandler.makeQuery(cwjy);
     dbConnector.submit(query);
   }
-  //////////////////////////////////
-  // deprecate put and get trxid
-  putnReturnTrxId = (cwjy) => {
-    const trx = { usernConnector: cwjy.connectorSerial + cwjy.userId, trxId: trxCount++};
-    console.log(`returntrxId:usernconnector:  ${trx.usernConnector} trxId: ${trx.trxId}`);
-    onGoingTrx.push(trx);
-    return trx.trxId;
-  }
-  getTrxId = (cwjy) => {
-    const found = onGoingTrx.find(({usernConnector}) => usernConnector == cwjy.connectorSerial + cwjy.userId);
-    if(!found)
-      return -1;
-    console.log(`getTrxId:usernconnector:  ${found.usernConnector} trxId: ${found.trxId}`);
-    return found.trxId;
-  }
-  /////////////////////////////////
 
   withReturn = async (cwjy, callback) => {
     requestCount++;
     var returnValue;
     if(cwjy.action == 'StartTransaction') {
-      //cwjy.trxId = putnReturnTrxId(cwjy);
       cwjy.trxId = trxCount++;
     }
     else if(cwjy.action == 'StopTransaction') {
-      //cwjy.trxId = getTrxId(cwjy);
       cwjy.trxId = cwjy.pdu.transactionId;
     }
 
+    //console.log('withReturn called: ' + JSON.stringify(cwjy));
     var query = messageHandler.makeQuery(cwjy);
+    //console.log('withReturn query: ' + query);
     var result = await dbConnector.submitSync(query);
-    console.log('withReturn result: ' + JSON.stringify(result));
+    //console.log('withReturn result: ' + JSON.stringify(result));
     ////////////////////////////
     // todo
     // RemoteStartTransaction
@@ -98,7 +85,8 @@ function DBController (dbms) {
         break;
     }
 
-    callback(returnValue);
+    if(callback)
+      callback(returnValue);
   }
 
   setTxCount = async () => {

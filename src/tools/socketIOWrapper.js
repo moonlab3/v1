@@ -14,7 +14,9 @@ function SocketClient  (namespace)  {
     io = socketio(`http://${dbserver.host}:${dbserver.port}`);
 
   sendOnly = (msg) => {
-    io.emit('noReturn', msg);
+    io.emit('withReturn', msg, null);
+    //console.log('sendOnly: ' + JSON.stringify(msg));
+    //io.emit('noReturn', msg);
   }
 
   sendAndReceive = (msg) => {

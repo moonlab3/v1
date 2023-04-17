@@ -17,6 +17,7 @@ function DBConnector(dbms) {
   submit = (query) => {
     if (!query)
     return null;
+    console.log('async sql: ' + query);
     dbConn.query(query, (err, res) => {
       if(err) {
         console.log('dbConnector:submit: error ' + err);
@@ -31,7 +32,7 @@ function DBConnector(dbms) {
     if (!query)
       return null;
     return new Promise((resolve, reject) => {
-      console.log('sql: ' + query);
+      console.log('sync sql: ' + query);
       var start = Date.now();
       dbConn.query(query, (err, res) => {
         if (err) {
@@ -41,7 +42,7 @@ function DBConnector(dbms) {
         var end = Date.now();
         trxCount++;
         dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
-        console.log(`dbConnector:submitSync: success with ${res.length} records, fetched in ${end - start}ms. average: ${dbSpeedAvg}`);
+        //console.log(`dbConnector:submitSync: success with ${res.length} records, fetched in ${end - start}ms. average: ${dbSpeedAvg}`);
         resolve(res);
       });
     });

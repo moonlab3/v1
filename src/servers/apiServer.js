@@ -17,6 +17,8 @@ const config = require('config');
 const apiserver = config.get('apiserver');
 
 process.title = process.argv[2];
+process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
+process.env.NODE_APP_INSTANCE = 1;
 
 server.listen(apiserver.port, () => {
   console.log(`api server on. ${new Date(Date.now())} port: ${apiserver.port} `);

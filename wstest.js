@@ -8,19 +8,19 @@ client.on('connectFailed', function(error) {
   console.log('Connect Error' + error.toString());
 });
 
-var endOfInput;
+var eol;
 
 function keyin() {
   var target = process.argv[2];
   var connser = process.argv[3];
 
-  if (process.platform == 'darwin') {
-    endOfInput = 1;
-    console.log('Running on MacOS');
-  }
-  else if (process.platform == 'win32') {
-    endOfInput = 2;
+  if (process.platform == 'win32') {
+    eol = 2;
     console.log('Running on Windows');
+  }
+  else {
+    eol = 1;
+    console.log('Running on Linux or MacOS');
   }
 
   if (target == '' || connser == '') {
@@ -56,7 +56,7 @@ client.on('connect', (connection) => {
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
-    command = String(input).slice(0, input.length - endOfInput).split(" ");
+    command = String(input).slice(0, input.length - eol).split(" ");
     switch (command[0]) {
       case 'list':
         console.log('auth heart start stop avail reserve meter show res accept reject repeat');
