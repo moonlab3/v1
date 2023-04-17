@@ -71,18 +71,18 @@ client.on('connect', (connection) => {
         connection.send(`{"req":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
       case 'start':
-        if(command[1])
+        if(command[1] && command[2] && command[3])
           connection.send(`{"req":"StartTransaction", "connectorSerial":"${connser}", "pdu":{"connectorId": ${connid}, 
-                          "idTag":"${command[1]}", "meterStart": 234, "timeStamp": ${Date.now()}, "bulkSoc": 12.1, "fullSoc": 72.7 }}`);
+                          "idTag":"${command[1]}", "meterStart": ${command[3]}, "timeStamp": ${Date.now()}, "bulkSoc": ${command[2]}, "fullSoc": 72.7 }}`);
         else
-          console.log('usage: start {userid}');
+          console.log('usage: start {userid} {bulkSoc} {meterStart}');
         break;
       case 'stop':
-        if(command[1])
+        if(command[1] && command[2] && command[3])
           connection.send(`{"req":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId": ${command[1]}, 
-                          "meterStop":393, "timeStamp": ${Date.now()}, "reason": "whatever"}}`);
+                          "meterStop":${command[2]}, "timeStamp": ${Date.now()}, "reason": "${command[3]}"}}`);
         else
-          console.log('usage: stop {transactionId}');
+          console.log('usage: stop {transactionId} {meterStop} {reason}');
         break;
       case 'status':
         if(command[1])

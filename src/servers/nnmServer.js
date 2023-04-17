@@ -5,9 +5,9 @@ const connDBServer = require('../tools/socketIOWrapper')('nnmServer');
 const dbConnector = require('../tools/dbConnector')(dbms);
 
 function init() {
-  console.log('notification and monitoring server opened. not listening.');
+  console.log('notification and monitoring server on.');
 
-  updateRequest();
+  //updateRequest();
 }
 
 function updateRequest() {

@@ -107,6 +107,7 @@ function DBController (dbms) {
     trxCount = result[0].max + 1;
     console.log('setTxCount: ' + trxCount);
   }
+
   const dbController = {
     preProcess,
     showPerformance,

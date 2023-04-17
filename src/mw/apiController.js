@@ -214,9 +214,6 @@ function APIController(server) {
         cwjy = { action: req.req, userId: req.pdu.idTag, connectorSerial: req.connectorSerial,
                   bulkSoc: req.pdu.bulkSoc, fullSoc: req.pdu.fullSoc, meterStart: req.pdu.meterStart };
         conf = await connDBServer.sendAndReceive(cwjy);
-        ///////////////////////////////
-        // semaphore location
-        //unlockActionProcess(req.connectorSerial);
 
         /////////////////////////////////////////
         // todo
@@ -229,13 +226,9 @@ function APIController(server) {
         conf = await connDBServer.sendAndReceive(cwjy);
         break;
       case 'ShowArray':
-        /////////////////////////////////////
-        // for test only
-        connCP.showAllConnections('ws call');
+        connCP.showAllConnections();
         break;
       case 'Quit':
-        /////////////////////////////////////
-        // for test only
         connCP.removeConnection(req.connectorSerial);
         return;
     }

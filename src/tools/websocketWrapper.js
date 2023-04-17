@@ -33,7 +33,7 @@ function WebSocketWrapper(server) {
 
   });
 
-  showAllConnections = function (comment) {
+  showAllConnections = function () {
     socketArray.forEach((entry) => {
       console.log('wss:showAllConnections: ' + entry.id);
     });
