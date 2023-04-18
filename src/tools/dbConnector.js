@@ -16,14 +16,14 @@ function DBConnector(dbms) {
   });
   submit = (query) => {
     if (!query)
-    return null;
-    console.log('async sql: ' + query);
+      return;
+    //console.log('async sql: ' + query);
     dbConn.query(query, (err, res) => {
       if(err) {
         console.log('dbConnector:submit: error ' + err);
       }
       else {
-        console.log('dbConnector:submit: success ' + res);
+        //console.log('dbConnector:submit: success ' + res);
       }
     });
   }
@@ -32,7 +32,7 @@ function DBConnector(dbms) {
     if (!query)
       return null;
     return new Promise((resolve, reject) => {
-      console.log('sync sql: ' + query);
+      //console.log('sync sql: ' + query);
       var start = Date.now();
       dbConn.query(query, (err, res) => {
         if (err) {

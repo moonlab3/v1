@@ -7,7 +7,7 @@ function DBMonitor(dbConnector) {
     //////////////////////////////////////////
     // heartbeat
     query = `SELECT connectorSerial, lastHeartBeat FROM connector WHERE lastHeartBeat < CURRENT_TIMESTAMP - 1000` ;
-    result = await dbConnector.submitSync(query);
+    //result = await dbConnector.submitSync(query);
     for (var i in result) {
       //console.log(`watch: ${JSON.stringify(result[i])}`);
       // status change to faulted?

@@ -1,3 +1,7 @@
+process.title = process.argv[2];
+process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
+process.env.NODE_APP_INSTANCE = 1;
+
 const config = require('config');
 const dbms = config.get('dbms');
 
@@ -15,14 +19,11 @@ function updateRequest(cwjy) {
 function init() {
   console.log('notification and monitoring server on.');
   monitor.registerSender(updateRequest);
-  setInterval(monitor.watch, 10000);
+
+  setInterval(monitor.watch, 1000 * 60 * 60 );    //  every hour
+  
 
 }
-
-
-process.title = process.argv[2];
-process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
-process.env.NODE_APP_INSTANCE = 1;
 
 init();
 

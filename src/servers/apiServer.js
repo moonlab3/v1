@@ -1,3 +1,7 @@
+process.title = process.argv[2];
+process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
+process.env.NODE_APP_INSTANCE = 1;
+
 const express = require('express');
 const app = express();
 const https = require('https');
@@ -13,12 +17,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false}));
 app.use('/v1', v1Router);
 
+
 const config = require('config');
 const apiserver = config.get('apiserver');
 
-process.title = process.argv[2];
-process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
-process.env.NODE_APP_INSTANCE = 1;
 
 server.listen(apiserver.port, () => {
   console.log(`api server on. ${new Date(Date.now())} port: ${apiserver.port} `);

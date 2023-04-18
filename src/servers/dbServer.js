@@ -1,3 +1,7 @@
+process.title = process.argv[2];
+process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
+process.env.NODE_APP_INSTANCE = 1;
+
 const express = require('express');
 const app = express();
 const server = require('http').createServer(app);
@@ -10,15 +14,12 @@ const dbms = config.get('dbms');
 const controller = require('../mw/logics')(dbms);
 //const mailer = require('./tools/mail');
 
-process.title = process.argv[2];
-process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
-process.env.NODE_APP_INSTANCE = 1;
 
 io.of('apiServer').on('connection', (socket) => {
   console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
   
   socket.on('withReturn', controller.withReturn);
-  socket.on('noReturn', controller.noReturn);
+  //socket.on('noReturn', controller.noReturn);
   socket.onAny(controller.preProcess);
 
 });
@@ -27,7 +28,7 @@ io.of('nnmServer').on('connection', (socket) => {
   console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
   socket.onAny(controller.preProcess);
   socket.on('withReturn', controller.withReturn);
-  socket.on('noReturn', controller.noReturn);
+  //socket.on('noReturn', controller.noReturn);
 });
 
 server.listen(dbServer.port, ()=> {
