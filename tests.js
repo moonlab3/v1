@@ -14,7 +14,7 @@ function init() {
     empty.value.idd = String(idx);
     empty.value.idx = String(value);
 
-    console.log(`${JSON.stringify(empty)}`);
+    console.log(JSON.stringify(empty));
     
     if(idx == "sho") {
       var i=0;

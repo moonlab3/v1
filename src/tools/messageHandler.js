@@ -14,9 +14,11 @@ makeQuery = (cwjy) => {
       break;
     case 'Angry':
       //query = 'INSERT INTO angry (recipientId, senderId) VALUES ('${cwjy.}
+      /*
       query = `SELECT endPoint FROM user LEFT JOIN connector 
                ON connector.occupyingUserId = user.userId
                WHERE connector.connectorSerial = '${cwjy.connectorSerial}'`;
+               */
       break;
     case 'Alarm':
       break;
@@ -48,7 +50,7 @@ makeQuery = (cwjy) => {
                SET bill.chargePointId = connector.chargePointId, bill.ownerId = connector.ownerId,
                bill.bulkSoc = ${cwjy.bulkSoc}, bill.fullSoc = ${cwjy.fullSoc} 
                WHERE bill.trxId = ${cwjy.trxId};
-               INSERT INTO recent (userId, chargePointId)
+               REPLACE INTO recent (userId, chargePointId)
                SELECT occupyingUserId, chargePointId FROM connector WHERE connectorSerial='${cwjy.connectorSerial}'`;
       break;
     case 'StatusNotification':
@@ -62,6 +64,9 @@ makeQuery = (cwjy) => {
     case 'StopTransaction':
       query= `UPDATE connector SET status = 'Finishing' WHERE connectorSerial = '${cwjy.connectorSerial}';
               UPDATE bill SET finished = CURRENT_TIMESTAMP WHERE trxId = ${cwjy.trxId};`;
+              //INSERT INTO notification (recipientId, expiry, type) 
+              //VALUES ()`;
+
       break;
     case 'RemoteStartTransaction':
       query = `UPDATE connector SET status = 'Preparing', occupyingUserId = ${cwjy.userId}

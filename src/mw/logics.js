@@ -81,10 +81,15 @@ function DBController (dbms) {
             temp.pdu.status = "Rejected";
         }
         //returnValue = messageHandler.makeConfirmationMessage('conf', temp);
+        returnValue = temp;
         break;
-       
     }
 
+    if(callback)
+      callback(returnValue);
+  }
+
+  setTxCount = async() => {
     var query = `SELECT MAX(trxId) AS max FROM bill;`;
     var result = await dbConnector.submitSync(query);
     trxCount = result[0].max + 1;

@@ -5,6 +5,15 @@ function APIController(server) {
   var waitingJobs = 0;
   var lockArray = [];
 
+  hscanNotLoggedIn = async (req, res) => {
+    waitingJobs++;
+    var cwjy = { action: "ConnectorInformation", connectorSerial: req.params.connectorSerial, userId: null};
+    var result = await connDBServer.sendAndReceive(cwjy);
+
+    res.json(result);
+    res.end();
+    waitingJobs--;
+  }
   hscanLoggedIn = async (req, res) => {
     ///////////////////////////////////////////
     // fetch booking occupying end
@@ -16,7 +25,7 @@ function APIController(server) {
 
     res.json(result);
     res.end();
-    console.log('apiController:hscan: ' + JSON.stringify(result));
+    //console.log('apiController:hscan: ' + JSON.stringify(result));
     waitingJobs--;
   }
 
@@ -177,6 +186,8 @@ function APIController(server) {
 
   }
 
+  userRecent = (req, res) => {
+  }
   userStatus = (req, res) => {
   }
 
@@ -270,11 +281,13 @@ function APIController(server) {
 
   const apiController = {
     waitAndGo,
+    hscanNotLoggedIn,
     hscanLoggedIn,
     hscanAction,
     userHistory,
     userStatus,
     userFavo,
+    userRecent,
     cpGet,
     cpPut,
     wsReq,

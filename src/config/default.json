@@ -1,0 +1,28 @@
+{
+  "apiserver": {
+    "host": "127.0.0.1",
+    "port": 3001
+  },
+  "dbserver": {
+    "host": "127.0.0.1",
+    "port": 3002
+  },
+  "dbms": {
+    "port": 3306,
+    "host": "127.0.0.1",
+    "user": "hclab",
+    "password": "hclab",
+    "database": "hclab"
+  },
+  "directories": {
+    "charging": "/files/charging",
+    "tmp": "/files/tmp"
+  },
+  "mailsvr": {
+    "service": "gmail",
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "user": "moon.lab2@gmail.com",
+    "password": "ekftnv0gns"
+  }
+}
