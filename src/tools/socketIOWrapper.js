@@ -1,5 +1,5 @@
 ////////////////////////////////////////////
-// socketClient Object with construct function
+// socketClient Object 
   const config = require('config');
   const dbserver = config.get('dbserver');
   const socketio = require('socket.io-client');
@@ -14,8 +14,8 @@ function SocketClient  (namespace)  {
     io = socketio(`http://${dbserver.host}:${dbserver.port}`);
 
   sendOnly = (msg) => {
+    //io.emit('withReturn', msg, null);
     io.emit('withReturn', msg, null);
-    //console.log('sendOnly: ' + JSON.stringify(msg));
     //io.emit('noReturn', msg);
   }
 

@@ -20,7 +20,7 @@ function DBConnector(dbms) {
     //console.log('async sql: ' + query);
     dbConn.query(query, (err, res) => {
       if(err) {
-        console.log('dbConnector:submit: error ' + err);
+        console.log('dbConnector:submit: ' + err);
       }
       else {
         //console.log('dbConnector:submit: success ' + res);
@@ -37,7 +37,7 @@ function DBConnector(dbms) {
       dbConn.query(query, (err, res) => {
         if (err) {
           console.log('dbConnector:submitSync: ' + err);
-          reject(err);
+          resolve(null);
         }
         var end = Date.now();
         trxCount++;

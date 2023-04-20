@@ -1,3 +1,6 @@
+const SQL_RESERVE_DURATION = 1500;
+const SQL_ANGRY_EXPIRY_DURATION = 1500;
+
 makeQuery = (cwjy) => {
   var query;
   //var req = cwjy.queryObj;
@@ -7,13 +10,18 @@ makeQuery = (cwjy) => {
       query = `SELECT status, occupyingUserId, occupyingEnd, connectorId FROM connector 
               WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
+    case 'ChargingStatus':
+      query = `SELECT * FROM bill 
+               WHERE userId = ${cwjy.userId} AND connectorSerial = '${cwjy.connectorSerial}' AND finished = null`;
+      break;
     case 'Reserve':                                                       // DONE DONE DONE DONE
       query = `UPDATE connector
-               SET status = 'Reserved', occupyingUserId = ${cwjy.userId}, occupyingEnd = CURRENT_TIMESTAMP + 1500
+               SET status = 'Reserved', occupyingUserId = ${cwjy.userId}, 
+               occupyingEnd = CURRENT_TIMESTAMP + ${SQL_RESERVE_DURATION}
                WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       break;
     case 'Angry':
-      //query = 'INSERT INTO angry (recipientId, senderId) VALUES ('${cwjy.}
+      //query = `INSERT INTO notification (recipientId, expiry, type) VALUES ('${cwjy.userId})`;
       /*
       query = `SELECT endPoint FROM user LEFT JOIN connector 
                ON connector.occupyingUserId = user.userId
@@ -41,21 +49,22 @@ makeQuery = (cwjy) => {
       break;
     case 'MeterValues':
       break;
-    case 'StartTransaction':                                                // DONE DONE DONE DONE
-      query = `UPDATE connector SET status = 'Charging', occupyingUserId = ${cwjy.userId} 
+    case 'StartTransaction':
+      query = `UPDATE connector SET status = 'Charging', occupyingUserId = ${cwjy.pdu.idTag} 
                WHERE connectorSerial = '${cwjy.connectorSerial}';
-               INSERT INTO bill (started, connectorSerial, userId, trxId) 
-               VALUES (CURRENT_TIMESTAMP, '${cwjy.connectorSerial}', ${cwjy.userId}, ${cwjy.trxId});
+               INSERT INTO bill (started, connectorSerial, userId, trxId, bulkSoc, fullSoc) 
+               VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.connectorSerial}', ${cwjy.pdu.idTag},
+               ${cwjy.pdu.transactionId}, ${cwjy.pdu.bulkSoc}, ${cwjy.pdu.fullSoc});
                UPDATE bill LEFT JOIN connector ON bill.connectorSerial = connector.connectorSerial
-               SET bill.chargePointId = connector.chargePointId, bill.ownerId = connector.ownerId,
-               bill.bulkSoc = ${cwjy.bulkSoc}, bill.fullSoc = ${cwjy.fullSoc} 
-               WHERE bill.trxId = ${cwjy.trxId};
+               SET bill.chargePointId = connector.chargePointId, bill.ownerId = connector.ownerId
+               WHERE bill.trxId = ${cwjy.pdu.transactionId};
                REPLACE INTO recent (userId, chargePointId)
                SELECT occupyingUserId, chargePointId FROM connector WHERE connectorSerial='${cwjy.connectorSerial}'`;
+              // 1000: epoch to tiestamp
       break;
     case 'StatusNotification':
-      if(cwjy.userId)
-        query = `UPDATE connector SET status = '${cwjy.pdu.status}', occupyingUserId = ${cwjy.userId}
+      if(cwjy.pdu.idTag)
+        query = `UPDATE connector SET status = '${cwjy.pdu.status}', occupyingUserId = ${cwjy.pdu.idTag}
                  WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       else
         query = `UPDATE connector SET status = '${cwjy.pdu.status}', occupyingUserId = null, occupyingEnd = null
@@ -63,7 +72,10 @@ makeQuery = (cwjy) => {
       break;
     case 'StopTransaction':
       query= `UPDATE connector SET status = 'Finishing' WHERE connectorSerial = '${cwjy.connectorSerial}';
-              UPDATE bill SET finished = CURRENT_TIMESTAMP WHERE trxId = ${cwjy.trxId};`;
+              UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), 
+              termination = '${cwjy.pdu.reason}', meterStop = ${cwjy.pdu.meterStop} 
+              WHERE trxId = ${cwjy.pdu.transactionId};`;
+              // 1000: epoch to tiestamp
               //INSERT INTO notification (recipientId, expiry, type) 
               //VALUES ()`;
 

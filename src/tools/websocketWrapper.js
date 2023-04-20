@@ -3,24 +3,33 @@ function WebSocketWrapper(server) {
   const WebSocketServer = require('websocket').server;
   var wss;
   var socketArray = [];
-  var callbackArray = [];
+  var forwardingArray = [];
 
   wss = new WebSocketServer({
     httpServer: server,
     autoAcceptConnections: false
   });
 
-  // start of receive and callback
   wss.on('request', function (request) {
     var connection = request.accept('hclab-protocol', request.origin);
 
     connection.on('message', (message) => {
-      var incoming = JSON.parse(message.utf8Data);
+      try {
+        var incoming = JSON.parse(message.utf8Data);
+        if (!incoming.req && !incoming.conf) {
+          console.log('websocket server: message is not valid for this system');
+          return;
+        }
+      } catch (e) {
+        console.log('websocket server: message is not valid json format');
+        return;
+      }
+
       if (incoming.req) {
-        returnCallback('general', incoming, connection);
+        forwardTo('general', incoming, connection);
       }
       else if (incoming.conf) {
-        returnCallback(incoming.connectorSerial, incoming, null);
+        forwardTo(incoming.connectorSerial, incoming, null);
       }
       else {
         console.log('wss:incoming: no req, no conf. wtf?');
@@ -78,39 +87,39 @@ function WebSocketWrapper(server) {
   sendAndReceive = function (connectorSerial, data) {
     sendTo(connectorSerial, null, data);
     return new Promise((resolve, reject) => {
-      enlistCallback(connectorSerial, (result) => {
-        delistCallback(connectorSerial);
+      enlistForwarding(connectorSerial, (result) => {
+        delistForwarding(connectorSerial);
         resolve(result);
       });
     });
   }
 
-  enlistCallback = function (connectorSerial, callback) {
-    var cb = { id: connectorSerial, callback: callback };
-    callbackArray.push(cb);
+  enlistForwarding = function (connectorSerial, callback) {
+    var cb = { id: connectorSerial, forward: callback };
+    forwardingArray.push(cb);
   }
 
-  returnCallback = function (connectorSerial, param1, param2) {
-    var found = callbackArray.find(({ id }) => id == connectorSerial);
+  forwardTo = function (connectorSerial, param1, param2) {
+    var found = forwardingArray.find(({ id }) => id == connectorSerial);
     if (!found) {
-      console.log('wss:returnCallback: returncallback weve got problem.');
+      console.log('wss:forwardTo: forwardTo weve got problem.');
       return;
     }
     if (param2) {
-      found.callback(param1, param2);
+      found.forward(param1, param2);
     }
     else {
-      found.callback(param1);
+      found.forward(param1);
     }
   }
-  delistCallback = function (connectorSerial) {
-    //var index = callbackArray.indexOf(({ id }) => id == String(connectorSerial));
-    var index = callbackArray.findIndex(i => i.id == connectorSerial);
+  delistForwarding = function (connectorSerial) {
+    //var index = forwardingArray.indexOf(({ id }) => id == String(connectorSerial));
+    var index = forwardingArray.findIndex(i => i.id == connectorSerial);
     if (index >= 0) {
-      callbackArray.splice(index, 1);
+      forwardingArray.splice(index, 1);
     }
     else {
-      console.error('wss:delistCallback: delist weve got a problem. index: ' + index);
+      console.error('wss:delistForwarding: delist weve got a problem. index: ' + index);
     }
 
   }
@@ -120,8 +129,8 @@ function WebSocketWrapper(server) {
     removeConnection,
     sendTo,
     sendAndReceive,
-    enlistCallback,
-    delistCallback,
+    enlistForwarding,
+    delistForwarding,
     showAllConnections
   }
   return websocketWrapper;
