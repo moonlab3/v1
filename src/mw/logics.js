@@ -4,7 +4,6 @@ function DBController (dbms) {
   const messageHandler = require('../tools/messageHandler');
   const dbConnector = require('../tools/dbConnector')(dbms);
   var dbSpeedAvg = 0, trxCount = 0, requestCount = 0;
-  var onGoingTrx = [];
 
   preProcess = (event, cwjy, callback) => {
     //console.log(`dbServer:preProcess: event: ${event}, cwjy: ${JSON.stringify(cwjy)}`);
