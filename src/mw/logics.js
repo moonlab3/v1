@@ -26,13 +26,11 @@ function DBController (dbms) {
   }
   */
 
-  /*
-  cpMessageHandler = async (cwjy, callback) => {
+  nnmRequest = async (cwjy, callback) => {
 
   }
-  */
 
-  withReturn = async (cwjy, callback) => {
+  extRequest = async (cwjy, callback) => {
     requestCount++;
     var returnValue, query, result, temp;
     switch (cwjy.action) {
@@ -58,7 +56,7 @@ function DBController (dbms) {
 
     ///////////////////////////////////////////
     // result message making from here
-    temp = { conf: cwjy.action, connectorSerial: cwjy.connectorSerial, pdu: {} };
+    temp = { messageType: 3, action: cwjy.action, pdu: {} };
     switch (cwjy.action) {
       
       // don't have meaningful response
@@ -80,8 +78,7 @@ function DBController (dbms) {
         break;
       case 'Authorize':                                               // DONE DONE DONE DONE
         temp.pdu = { idTagInfo: { status: result[0].authStatus } };
-        returnValue = temp;
-        break;
+        //returnValue = temp;
       case 'StartTransaction':                                        // DONE DONE DONE DONE
       case 'StopTransaction':                                         // DONE DONE DONE DONE
         //temp.pdu = {transionId: cwjy.trxId, idTagInfo: {status: "Accepted"}};
@@ -116,8 +113,8 @@ function DBController (dbms) {
   const dbController = {
     preProcess,
     showPerformance,
-    //noReturn,     // deprecate
-    withReturn,
+    extRequest,
+    nnmRequest,
     setTxCount
   }
 

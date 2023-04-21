@@ -15,13 +15,14 @@ function SocketClient  (namespace)  {
 
   sendOnly = (msg) => {
     //io.emit('withReturn', msg, null);
-    io.emit('withReturn', msg, null);
+    io.emit('cwjy', msg, null);
     //io.emit('noReturn', msg);
   }
 
   sendAndReceive = (msg) => {
     return new Promise((resolve, reject) => {
-      io.emit('withReturn', msg, (result) => {
+      //io.emit('withReturn', msg, (result) => {
+      io.emit('cwjy', msg, (result) => {
         resolve(result);
       });
     });

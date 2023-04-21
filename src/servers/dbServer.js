@@ -19,14 +19,16 @@ io.of('apiServer').on('connection', (socket) => {
   console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
   
   socket.onAny(controller.preProcess);
-  socket.on('withReturn', controller.withReturn);
+  //socket.on('withReturn', controller.withReturn);
+
+  socket.on('cwjy', controller.extRequest);
 
 });
 
 io.of('nnmServer').on('connection', (socket) => {
   console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
   socket.onAny(controller.preProcess);
-  socket.on('withReturn', controller.withReturn);
+  socket.on('cwjy', controller.nnmRequest);
 });
 
 server.listen(dbServer.port, ()=> {

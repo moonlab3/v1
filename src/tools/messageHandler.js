@@ -64,6 +64,8 @@ makeQuery = (cwjy) => {
       break;
     case 'StatusNotification':
       if(cwjy.pdu.idTag)
+        /////////////////////////////////////////////////////////////////
+        // pdu.idTag? or userId
         query = `UPDATE connector SET status = '${cwjy.pdu.status}', occupyingUserId = ${cwjy.pdu.idTag}
                  WHERE connectorSerial = '${cwjy.connectorSerial}'`;
       else

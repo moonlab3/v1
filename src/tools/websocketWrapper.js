@@ -14,9 +14,10 @@ function WebSocketWrapper(server) {
     var connection = request.accept('hclab-protocol', request.origin);
 
     connection.on('message', (message) => {
+      console.log(JSON.stringify(connection.socket._peername));
       try {
         var incoming = JSON.parse(message.utf8Data);
-        if (!incoming.req && !incoming.conf) {
+        if (!incoming.messageType) {
           console.log('websocket server: message is not valid for this system');
           return;
         }
@@ -25,10 +26,10 @@ function WebSocketWrapper(server) {
         return;
       }
 
-      if (incoming.req) {
+      if (incoming.messageType == 2) {
         forwardTo('general', incoming, connection);
       }
-      else if (incoming.conf) {
+      else if (incoming.messageType == 3) {
         forwardTo(incoming.connectorSerial, incoming, null);
       }
       else {

@@ -15,7 +15,7 @@ var monitorIns;
 function updateRequest(cwjy) {
   //cwjy = { action: 'admin', user: 'admin', connector: 'admin' };
   //console.log('update Request: ' + JSON.stringify(cwjy));
-  connDBServer.sendOnly(cwjy);
+  connDBServer.sendOnly('nnm', cwjy);
 
 }
 

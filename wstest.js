@@ -50,7 +50,7 @@ client.on('connect', (connection) => {
   var connid = process.argv[4];
   var command;
 
-  connection.send(`{"req":"BootNotification", "connectorSerial":"${connser}", 
+  connection.send(`{"messageType": 2, "action":"BootNotification", "connectorSerial":"${connser}", 
         "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "hclab" }}`);
         /////////////////////////////////////////////// check cpID and connectorSerial
   
@@ -63,47 +63,47 @@ client.on('connect', (connection) => {
         break;
       case 'auth':
         if(command[1])
-          connection.send(`{"req":"Authorize", "connectorSerial": "${connser}", "pdu":{"idTag":"${command[1]}"}}`);
+          connection.send(`{"messageType": 2, "action":"Authorize", "connectorSerial": "${connser}", "pdu":{"idTag":"${command[1]}"}}`);
         else
           console.log('usage: auth {userid}');
         break;
       case 'heart':
-        connection.send(`{"req":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
+        connection.send(`{"messageType": 2, "action":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
       case 'start':
         if(command[1] && command[2] && command[3])
-          connection.send(`{"req":"StartTransaction", "connectorSerial":"${connser}", "pdu":{"connectorId": ${connid}, 
+          connection.send(`{"messageType": 2, "action":"StartTransaction", "connectorSerial":"${connser}", "pdu":{"connectorId": ${connid}, 
                           "idTag":"${command[1]}", "meterStart": ${command[3]}, "timeStamp": ${Date.now()}, "bulkSoc": ${command[2]}, "fullSoc": 72.7 }}`);
         else
           console.log('usage: start {userid} {bulkSoc} {meterStart}');
         break;
       case 'stop':
         if(command[1] && command[2] && command[3])
-          connection.send(`{"req":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId": ${command[1]}, 
+          connection.send(`{"messageType": 2, "action":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId": ${command[1]}, 
                           "meterStop":${command[2]}, "timeStamp": ${Date.now()}, "reason": "${command[3]}"}}`);
         else
           console.log('usage: stop {transactionId} {meterStop} {reason}');
         break;
       case 'status':
         if(command[1])
-          connection.send(`{"req":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":${connid},
+          connection.send(`{"messageType": 2, "action":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":${connid},
                             "errorCode":"error001", "status":"${command[1]}", "timeStamp": ${Date.now()}}}`);
         else
           console.log('usage: status {Available Preparing Charging Finishing Reserved Unavailable}');
         break;
       case 'meter':
         if(command[1])
-          connection.send(`{"req": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": ${connid}, 
+          connection.send(`{"messageType": 2, "action": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": ${connid}, 
                         "meterValue": {"timeStamp": "${Date.now()}", "transactionId": ${command[1]}, "sampledValue": {"value":${command[2]}}}}}`);
         else
           console.log('usage: meter {trxId} {meterValue}');
         break;
       case 'show':
-        connection.send(`{"req":"ShowArray", "connectorSerial":"${connser}", "pdu":{}}`);
+        connection.send(`{"messageType": 2, "action":"ShowArray", "connectorSerial":"${connser}", "pdu":{}}`);
         break;
       case 'response':
         if(command[1])
-          connection.send(`{"conf":"${command[1]}", "connectorSerial":"${connser}", "pdu":{"status": "${command[2]}"}}`);
+          connection.send(`{"messageType": 3, "action":"${command[1]}", "connectorSerial":"${connser}", "pdu":{"status": "${command[2]}"}}`);
         else
           console.log('usage: response {transaction name} {accept or reject}');
         break;
@@ -117,14 +117,14 @@ client.on('connect', (connection) => {
           console.log('usage: repeat {repeat count}');
         break;
       case 'quit':
-        connection.send(`{"req":"Quit", "connectorSerial":"${connser}", "pdu":{}}`);
+        connection.send(`{"messageType": 2, "action":"Quit", "connectorSerial":"${connser}", "pdu":{}}`);
         process.exit();
     }
 
     function repeat() {
       if (repeatCount < repeats)
         setTimeout(repeat, 1000);
-      connection.send(`{"req":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
+      connection.send(`{"messageType": 2, "action":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
       repeatCount++;
     }
 

@@ -9,7 +9,6 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "ConnectorInformation", connectorSerial: req.params.connectorSerial, userId: null};
     var result = await connDBServer.sendAndReceive(cwjy);
-    //var result = await connDBServer.sendAndReceive('fromUser', cwjy);
 
     res.json(result);
     res.end();
@@ -23,7 +22,6 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "ConnectorInformation", connectorSerial: req.params.connectorSerial, userId: req.params.userId};
     var result = await connDBServer.sendAndReceive(cwjy);
-    //var result = await connDBServer.sendAndReceive('fromUser', cwjy);
 
     res.json(result);
     res.end();
@@ -44,7 +42,6 @@ function APIController(server) {
     // further analysis is required
     var cwjy = { action: "ConnectorCheck", userId: req.params.userId, connectorSerial: req.params.connectorSerial };
     var result = await connDBServer.sendAndReceive(cwjy);
-    //var result = await connDBServer.sendAndReceive('fromUser', cwjy);
     var response = { userId: req.params.userId, 
                     result: { connectorSerial: req.params.connectorSerial, status: result.status} };
 
@@ -65,8 +62,7 @@ function APIController(server) {
         // semaphore location   further analysis is required
         lockActionProcess(req.params.connectorSerial);
 
-        reqToCP.req = 'RemoteStartTransaction';
-        reqToCP.pdu = { idTag: req.params.userId };
+        reqToCP = { messageType: 2, action: 'RemoteStartTransaction', pdu: { idTag: req.params.userId } };
         result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
         if (result.pdu.status == 'Accepted') {
           cwjy = {
@@ -74,7 +70,6 @@ function APIController(server) {
             pdu: { status: 'Preparing' }
           };
           result = await connDBServer.sendAndReceive(cwjy);
-          //result = await connDBServer.sendAndReceive('fromCP', cwjy);
         }
         else {
           response.responseCode = 'Rejected';
@@ -89,9 +84,8 @@ function APIController(server) {
         break;
       case 'Blink':
         if (result.status == 'Reserved' && result.occupyingUerId == req.params.userId) {
-          reqToCP.req = 'DataTransfer';
-          reqToCP.pdu = { vendorId: 'com.hclab', connectorId: result.connectorId, data: 'blink'};
-          //result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
+          reqToCP = {messageType: 2, action: 'DataTransfer', 
+                    pdu: { vendorId: 'com.hclab', connectorId: result.connectorId, data: 'blink'}};
           connCP.sendTo(req.params.connectorSerial, null, reqToCP);
           response.responseCode = 'Accepted';
         }
@@ -107,8 +101,8 @@ function APIController(server) {
       case 'Reserve':
         if(result.status == 'Available') {
           cwjy = { action: 'Reserve', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
-          reqToCP.req = 'DataTransfer';
-          reqToCP.pdu = {vendorId: 'com.hclab', connectorId: result.connectorId, data: 'yellow'};
+          reqToCP = { messageType: 2, action: 'DataTransfer', 
+                    pdu: { vendorId: 'hclab.temp', connectorId: result.connectorId, data: 'yellow' } };
           connCP.sendTo(req.params.connectorSerial, null, reqToCP);
           result = await connDBServer.sendAndReceive(cwjy);
           response.responseCode = 'Accepted';
@@ -121,10 +115,7 @@ function APIController(server) {
         if(result.status == 'Charging' && result.occupyingUserId == req.params.userId) {
           cwjy = { action: 'ChargingStatus', userId: req.params.userId, connectorSerial: req.params.connectorSerial };
           result = await connDBServer.sendAndReceive(cwjy);
-          reqToCP.req = 'RemoteStopTransaction';
-          ////////////////////////////////////////
-
-          reqToCP.pdu = { transactionId : result.trxId };
+          reqToCP = {messageType: 2, action: 'RemoteStopTransaction', pdu: {transactionId: result.trxId}};
           result = await connCP.sendAndReceive(req.params.connectorSerial, reqToCP);
 
         }
@@ -211,48 +202,42 @@ function APIController(server) {
 
 
   wsReq = async (req, conn) => {
+    /*
     if(!req.connectorSerial) {
       console.log('apiController: message format is not valid for this system');
       connCP.sendTo(req.connectorSerial, conn, {conf: req.req, pdu: {status:'Communication Format Error'}});
       return;
     }
+    */
 
     var cwjy;
-    var conf = { conf: req.req, connectorSerial: req.connectorSerial, pdu: {} };
-    switch (req.req) {
+    var conf = { messageType: 3, action: req.action, pdu: {} };
+    switch (req.action) {
       case 'BootNotification':
         connCP.storeConnection(req.connectorSerial, conn, true);
-        cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu };
-        conf = await connDBServer.sendAndReceive(cwjy);
+        //cwjy = { action: req.action, connectorSerial: req.connectorSerial, pdu: req.pdu };
+        conf = await connDBServer.sendAndReceive(req);
         break;
       ////////////////////////////////////////////////////////////////
       // almost same tasks
       case 'HeartBeat':
         connCP.storeConnection(req.connectorSerial, conn, false);
-        req.pdu.currentTime = Date.now();
         conf.pdu = { currentTime: Date.now() };
       case 'StatusNotification':
       case 'MeterValues':
-        cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu };
-        connDBServer.sendOnly(cwjy);
+        //cwjy = { action: req.action, connectorSerial: req.connectorSerial, pdu: req.pdu };
+        connDBServer.sendOnly(req);
         break;
       case 'Authorize':
-        cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu };
-        conf = await connDBServer.sendAndReceive(cwjy);
-        break;
       case 'StartTransaction':
-        cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu};
-        conf = await connDBServer.sendAndReceive(cwjy);
-
+      case 'StopTransaction':
+        //cwjy = { action: req.action, connectorSerial: req.connectorSerial, pdu: req.pdu};
+        conf = await connDBServer.sendAndReceive(req);
         /////////////////////////////////////////
         // todo
         // occupyingEnd time calculation
         ///////////////////////////////
         // for RFID 
-        break;
-      case 'StopTransaction':
-        cwjy = { action: req.req, connectorSerial: req.connectorSerial, pdu: req.pdu };
-        conf = await connDBServer.sendAndReceive(cwjy);
         break;
       case 'ShowArray':
         connCP.showAllConnections();

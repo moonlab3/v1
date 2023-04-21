@@ -1,7 +1,9 @@
+const { v1: uuidv1 } = require('uuid');
 function init() {
   var date1 = new Date('04/17/2023 16:00:00');
   var date2 = new Date('04/17/2023 15:59:00');
   console.log(`${date1} - ${date2} = ${date1 - date2}`);
+  console.log(`uuid: ${uuidv1()}`);
   /*
   var test = [];
   test.push({id:"wer", value:"dfgdf"});
