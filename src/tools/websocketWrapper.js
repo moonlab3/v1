@@ -30,7 +30,7 @@ function WebSocketWrapper(server) {
         forwardTo('general', incoming, connection);
       }
       else if (incoming.messageType == 3) {
-        forwardTo(incoming.connectorSerial, incoming, null);
+        forwardTo(incoming.evseSerial, incoming, null);
       }
       else {
         console.log('wss:incoming: no req, no conf. wtf?');
@@ -49,17 +49,17 @@ function WebSocketWrapper(server) {
     });
   }
 
-  storeConnection = function (connectorSerial, connection, forceRemove) {
-    var found = socketArray.find(({ id }) => id == connectorSerial);
+  storeConnection = function (evseSerial, connection, forceRemove) {
+    var found = socketArray.find(({ id }) => id == evseSerial);
     if (!found || found.conn.socket.readyState > 1 || forceRemove) {
-      removeConnection(connectorSerial);
-      var sock = { id: `${connectorSerial}`, conn: connection };
+      removeConnection(evseSerial);
+      var sock = { id: `${evseSerial}`, conn: connection };
       socketArray.push(sock);
     }
   }
 
-  removeConnection = function (connectorSerial) {
-    var index = socketArray.findIndex(i => i.id == connectorSerial);
+  removeConnection = function (evseSerial) {
+    var index = socketArray.findIndex(i => i.id == evseSerial);
     if (index >= 0) {
       socketArray[index].conn.close();
       socketArray.splice(index, 1);
@@ -67,41 +67,41 @@ function WebSocketWrapper(server) {
 
   }
 
-  sendTo = function (connectorSerial, connection, data) {
+  sendTo = function (evseSerial, connection, data) {
     //console.log(`websocketWrapper:sendTo: ${JSON.stringify(data)}`);
-    if (connectorSerial == '') {
+    if (evseSerial == '') {
       connection.send(JSON.stringify(data));
     }
     else {
-      var found = socketArray.find(({ id }) => id == connectorSerial);
+      var found = socketArray.find(({ id }) => id == evseSerial);
       if (found) {
         found.conn.send(JSON.stringify(data));
         return true;
       }
       else {
-        console.warn(`wss:sendTo: No such client. ${connectorSerial} needs rebooting.`);
+        console.warn(`wss:sendTo: No such client. ${evseSerial} needs rebooting.`);
         return false;
       }
     }
   }
 
-  sendAndReceive = function (connectorSerial, data) {
-    sendTo(connectorSerial, null, data);
+  sendAndReceive = function (evseSerial, data) {
+    sendTo(evseSerial, null, data);
     return new Promise((resolve, reject) => {
-      enlistForwarding(connectorSerial, (result) => {
-        delistForwarding(connectorSerial);
+      enlistForwarding(evseSerial, (result) => {
+        delistForwarding(evseSerial);
         resolve(result);
       });
     });
   }
 
-  enlistForwarding = function (connectorSerial, callback) {
-    var cb = { id: connectorSerial, forward: callback };
+  enlistForwarding = function (evseSerial, callback) {
+    var cb = { id: evseSerial, forward: callback };
     forwardingArray.push(cb);
   }
 
-  forwardTo = function (connectorSerial, param1, param2) {
-    var found = forwardingArray.find(({ id }) => id == connectorSerial);
+  forwardTo = function (evseSerial, param1, param2) {
+    var found = forwardingArray.find(({ id }) => id == evseSerial);
     if (!found) {
       console.log('wss:forwardTo: forwardTo weve got problem.');
       return;
@@ -113,9 +113,9 @@ function WebSocketWrapper(server) {
       found.forward(param1);
     }
   }
-  delistForwarding = function (connectorSerial) {
-    //var index = forwardingArray.indexOf(({ id }) => id == String(connectorSerial));
-    var index = forwardingArray.findIndex(i => i.id == connectorSerial);
+  delistForwarding = function (evseSerial) {
+    //var index = forwardingArray.indexOf(({ id }) => id == String(evseSerial));
+    var index = forwardingArray.findIndex(i => i.id == evseSerial);
     if (index >= 0) {
       forwardingArray.splice(index, 1);
     }

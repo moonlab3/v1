@@ -8,11 +8,11 @@ client.on('connectFailed', function(error) {
   console.log('Connect Error' + error.toString());
 });
 
-var eol;
+var eol, evseser;
 
-function keyin() {
+function init() {
   var target = process.argv[2];
-  var connser = process.argv[3];
+  evseser = process.argv[3];
 
   if (process.platform == 'win32') {
     eol = 2;
@@ -23,8 +23,8 @@ function keyin() {
     console.log('Running on Linux or MacOS');
   }
 
-  if (target == '' || connser == '') {
-    console.log('usage: wstest.js {target} {connector} {connectorId}');
+  if (target == '' || evseser == '') {
+    console.log('usage: wstest.js {target} {evse}');
     process.exit();
   }
 
@@ -38,21 +38,20 @@ function keyin() {
     client.connect('wss://10.20.20.28:3001', 'hclab-protocol');
   }
   else {
-    console.log('usage: wstest.js {target} {connector} {connectorId}');
+    console.log('usage: wstest.js {target} {evse}');
     process.exit();
   }
 }
-keyin();
+
+init();
 
 client.on('connect', (connection) => {
   var repeatCount = 0, repeats = 0;
-  var connser = process.argv[3];
-  var connid = process.argv[4];
   var command;
 
-  connection.send(`{"messageType": 2, "action":"BootNotification", "connectorSerial":"${connser}", 
+  connection.send(`{"messageType": 2, "action":"BootNotification", "evseSerial":"${evseser}", 
         "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "hclab" }}`);
-        /////////////////////////////////////////////// check cpID and connectorSerial
+        /////////////////////////////////////////////// check cpID and evseSerial
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
@@ -63,47 +62,47 @@ client.on('connect', (connection) => {
         break;
       case 'auth':
         if(command[1])
-          connection.send(`{"messageType": 2, "action":"Authorize", "connectorSerial": "${connser}", "pdu":{"idTag":"${command[1]}"}}`);
+          connection.send(`{"messageType": 2, "action":"Authorize", "evseSerial": "${evseser}", "pdu":{"idTag":"${command[1]}"}}`);
         else
           console.log('usage: auth {userid}');
         break;
       case 'heart':
-        connection.send(`{"messageType": 2, "action":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
+        connection.send(`{"messageType": 2, "action":"HeartBeat", "evseSerial":"${evseser}", "pdu":{}}`);
         break;
       case 'start':
         if(command[1] && command[2] && command[3])
-          connection.send(`{"messageType": 2, "action":"StartTransaction", "connectorSerial":"${connser}", "pdu":{"connectorId": ${connid}, 
+          connection.send(`{"messageType": 2, "action":"StartTransaction", "evseSerial":"${evseser}", "pdu":{"connectorId": ${connid}, 
                           "idTag":"${command[1]}", "meterStart": ${command[3]}, "timeStamp": ${Date.now()}, "bulkSoc": ${command[2]}, "fullSoc": 72.7 }}`);
         else
           console.log('usage: start {userid} {bulkSoc} {meterStart}');
         break;
       case 'stop':
         if(command[1] && command[2] && command[3])
-          connection.send(`{"messageType": 2, "action":"StopTransaction", "connectorSerial":"${connser}", "pdu":{"transactionId": ${command[1]}, 
+          connection.send(`{"messageType": 2, "action":"StopTransaction", "evseSerial":"${evseser}", "pdu":{"transactionId": ${command[1]}, 
                           "meterStop":${command[2]}, "timeStamp": ${Date.now()}, "reason": "${command[3]}"}}`);
         else
           console.log('usage: stop {transactionId} {meterStop} {reason}');
         break;
       case 'status':
         if(command[1])
-          connection.send(`{"messageType": 2, "action":"StatusNotification", "connectorSerial":"${connser}", "pdu":{"connectorId":${connid},
+          connection.send(`{"messageType": 2, "action":"StatusNotification", "evseSerial":"${evseser}", "pdu":{"connectorId":${connid},
                             "errorCode":"error001", "status":"${command[1]}", "timeStamp": ${Date.now()}}}`);
         else
           console.log('usage: status {Available Preparing Charging Finishing Reserved Unavailable}');
         break;
       case 'meter':
         if(command[1])
-          connection.send(`{"messageType": 2, "action": "MeterValues", "connectorSerial": "${connser}", "pdu": { "connectorId": ${connid}, 
+          connection.send(`{"messageType": 2, "action": "MeterValues", "evseSerial": "${evseser}", "pdu": { "connectorId": ${connid}, 
                         "meterValue": {"timeStamp": "${Date.now()}", "transactionId": ${command[1]}, "sampledValue": {"value":${command[2]}}}}}`);
         else
           console.log('usage: meter {trxId} {meterValue}');
         break;
       case 'show':
-        connection.send(`{"messageType": 2, "action":"ShowArray", "connectorSerial":"${connser}", "pdu":{}}`);
+        connection.send(`{"messageType": 2, "action":"ShowArray", "evseSerial":"${evseser}", "pdu":{}}`);
         break;
       case 'response':
         if(command[1])
-          connection.send(`{"messageType": 3, "action":"${command[1]}", "connectorSerial":"${connser}", "pdu":{"status": "${command[2]}"}}`);
+          connection.send(`{"messageType": 3, "action":"${command[1]}", "evseSerial":"${evseser}", "pdu":{"status": "${command[2]}"}}`);
         else
           console.log('usage: response {transaction name} {accept or reject}');
         break;
@@ -117,14 +116,14 @@ client.on('connect', (connection) => {
           console.log('usage: repeat {repeat count}');
         break;
       case 'quit':
-        connection.send(`{"messageType": 2, "action":"Quit", "connectorSerial":"${connser}", "pdu":{}}`);
+        connection.send(`{"messageType": 2, "action":"Quit", "evseSerial":"${evseser}", "pdu":{}}`);
         process.exit();
     }
 
     function repeat() {
       if (repeatCount < repeats)
         setTimeout(repeat, 1000);
-      connection.send(`{"messageType": 2, "action":"HeartBeat", "connectorSerial":"${connser}", "pdu":{}}`);
+      connection.send(`{"messageType": 2, "action":"HeartBeat", "evseSerial":"${evseser}", "pdu":{}}`);
       repeatCount++;
     }
 
@@ -136,8 +135,8 @@ client.on('connect', (connection) => {
     var response = JSON.parse(message.utf8Data);
     if(response.pdu?.idTagInfo)
       console.log('idTagInfo: ' + JSON.stringify(response.pdu.idTagInfo));
-    if(response?.connectorSerial)
-      console.log('connectorSerial: ' + JSON.stringify(response.connectorSerial));
+    if(response?.evseSerial)
+      console.log('evseSerial: ' + JSON.stringify(response.evseSerial));
     if(response.pdu?.status)
       console.log('status: ' + JSON.stringify(response.pdu.status));
     if(response.pdu?.connectorId)

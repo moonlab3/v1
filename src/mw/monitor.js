@@ -7,13 +7,13 @@ function DBMonitor(dbConnector) {
 
     //////////////////////////////////////////
     // heartbeat
-    query = `SELECT connectorSerial, lastHeartBeat FROM connector 
+    query = `SELECT evseSerial, lastHeartBeat FROM connector 
              WHERE lastHeartBeat < CURRENT_TIMESTAMP - ${SQL_HEARTBEAT_LIMIT}` ;
     //result = await dbConnector.submitSync(query);
     for (var i in result) {
       //console.log(`watch: ${JSON.stringify(result[i])}`);
       // status change to faulted?
-      cwjy =  {action: 'StatusNotification', connectorSerial: result[i].connectorSerial,
+      cwjy =  {action: 'StatusNotification', evseSerial: result[i].evseSerial,
                pdu: {status: 'Unavailable', timeStamp: Date.now()}};
       //toDBsvr(cwjy);
     }

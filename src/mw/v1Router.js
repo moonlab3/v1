@@ -4,9 +4,9 @@ var V1RouterWrapper = function (server) {
   var router = express.Router();
   const controller = require('./apiController')(server);
 
-  router.get('/hscan/:connectorSerial', controller.hscanNotLoggedIn);
-  router.get('/hscan/:connectorSerial/user/:userId', controller.hscanLoggedIn);
-  router.put('/hscan/:connectorSerial/user/:userId/action/:action', controller.waitAndGo, controller.hscanAction);
+  router.get('/hscan/:evseSerial', controller.hscanNotLoggedIn);
+  router.get('/hscan/:evseSerial/user/:userId', controller.hscanLoggedIn);
+  router.put('/hscan/:evseSerial/user/:userId/action/:action', controller.waitAndGo, controller.hscanAction);
   // hscan action is in one funtion
   // user related apis are divided in several functions
   // why? just for fun
