@@ -55,6 +55,7 @@ function WebSocketWrapper(server) {
       removeConnection(evseSerial);
       var sock = { id: `${evseSerial}`, conn: connection };
       socketArray.push(sock);
+      console.log(`store connection:  ${evseSerial}`);
     }
   }
 

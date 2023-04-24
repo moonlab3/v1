@@ -20,8 +20,8 @@ function DBController (dbms) {
     requestCount++;
     var returnValue, query, result, temp;
     switch (cwjy.action) {
-      case 'ConnectorCheck':
-      case 'ConnectorInformation':
+      case 'EVSECheck':
+      case 'EVSEInformation':
         query = `SELECT status, occupyingUserId, occupyingEnd FROM evse
                  WHERE evseSerial = '${cwjy.serial}'`;
         result = await dbConnector.submitSync(query);
@@ -40,11 +40,6 @@ function DBController (dbms) {
         break;
       case 'Angry':
         //query = `INSERT INTO notification (recipientId, expiry, type) VALUES ('${cwjy.userId})`;
-        /*
-        query = `SELECT endPoint FROM user LEFT JOIN connector 
-                 ON connector.occupyingUserId = user.userId
-                 WHERE connector.evseSerial = '${cwjy.evseSerial}'`;
-                 */
         break;
       case 'Alarm':
         break;
@@ -151,8 +146,8 @@ function DBController (dbms) {
         break;
       case 'ChargingStatus':
       case 'Angry':
-      case 'ConnectorInformation':
-      case 'ConnectorCheck':                                          // DONE DONE DONE DONE 
+      case 'EVSEInformation':
+      case 'EVSECheck':                                          // DONE DONE DONE DONE 
         returnValue = result[0];
         break;
       case 'Authorize':                                               // DONE DONE DONE DONE

@@ -7,7 +7,7 @@ function APIController(server) {
 
   hscanNotLoggedIn = async (req, res) => {
     waitingJobs++;
-    var cwjy = { action: "ConnectorInformation", evseSerial: req.params.evseSerial, userId: null};
+    var cwjy = { action: "EVSEInformation", evseSerial: req.params.evseSerial, userId: null};
     var result = await connDBServer.sendAndReceive(cwjy);
 
     res.json(result);
@@ -20,7 +20,7 @@ function APIController(server) {
     // fetch charging occupying end
     // fetch charging status
     waitingJobs++;
-    var cwjy = { action: "ConnectorInformation", evseSerial: req.params.evseSerial, userId: req.params.userId};
+    var cwjy = { action: "EVSEInformation", evseSerial: req.params.evseSerial, userId: req.params.userId};
     var result = await connDBServer.sendAndReceive(cwjy);
 
     res.json(result);
@@ -38,9 +38,9 @@ function APIController(server) {
     // cancel charging
 
     /////////////////////////////////////////////////
-    // always check connector status. Right? No?
+    // always check EVSE status. Right? No?
     // further analysis is required
-    var cwjy = { action: "ConnectorCheck", userId: req.params.userId, evseSerial: req.params.evseSerial };
+    var cwjy = { action: "EVSECheck", userId: req.params.userId, evseSerial: req.params.evseSerial };
     var result = await connDBServer.sendAndReceive(cwjy);
     var response = { userId: req.params.userId, 
                     result: { evseSerial: req.params.evseSerial, status: result.status} };
@@ -153,7 +153,7 @@ function APIController(server) {
   }
 
   cpGet = (req, res, next) => {
-    // show all connectors of the chargePoint
+    // show all EVSEs of the chargePoint
     // todo : add tables
     // fetch chargepoint information
     // fetch chargepoint list

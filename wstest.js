@@ -49,8 +49,8 @@ client.on('connect', (connection) => {
   var repeatCount = 0, repeats = 0;
   var command;
 
-  connection.send(`{"messageType": 2, "action":"BootNotification", "evseSerial":"${evseser}", 
-        "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "hclab" }}`);
+  connection.send(`{"messageType": 2, "action":"BootNotification",
+        "pdu":{"chargePointModel":"hcLab1", "chargePointVendor": "hclab", "chargeBoxSerialNumber": "${evseser}" }}`);
         /////////////////////////////////////////////// check cpID and evseSerial
   
   var stdin = process.openStdin();

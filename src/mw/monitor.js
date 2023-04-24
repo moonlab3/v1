@@ -7,7 +7,7 @@ function DBMonitor(dbConnector) {
 
     //////////////////////////////////////////
     // heartbeat
-    query = `SELECT evseSerial, lastHeartBeat FROM connector 
+    query = `SELECT evseSerial, lastHeartBeat FROM evse 
              WHERE lastHeartBeat < CURRENT_TIMESTAMP - ${SQL_HEARTBEAT_LIMIT}` ;
     //result = await dbConnector.submitSync(query);
     for (var i in result) {
