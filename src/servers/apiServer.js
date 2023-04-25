@@ -21,8 +21,9 @@ app.use('/v1', v1Router);
 const config = require('config');
 const apiserver = config.get('apiserver');
 
-
 server.listen(apiserver.port, () => {
   console.log(`api server on. ${new Date(Date.now())} port: ${apiserver.port} `);
   
 });
+
+// for console command

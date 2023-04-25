@@ -14,7 +14,7 @@ function WebSocketWrapper(server) {
     var connection = request.accept('hclab-protocol', request.origin);
 
     connection.on('message', (message) => {
-      console.log(JSON.stringify(connection.socket._peername));
+      //console.log(JSON.stringify(connection.socket._peername));
       try {
         var incoming = JSON.parse(message.utf8Data);
         if (!incoming.messageType) {
@@ -30,7 +30,13 @@ function WebSocketWrapper(server) {
         forwardTo('general', incoming, connection);
       }
       else if (incoming.messageType == 3) {
-        forwardTo(incoming.evseSerial, incoming, null);
+        ////////////////////////////////////////////////////////////
+        // serious problem
+        // serious problem
+        // serious problem
+        // incoming.evseSerial is not allowed
+        //forwardTo(incoming.evseSerial, incoming, null);
+        forwardTo(findEVSESerial(connection), incoming, null);
       }
       else {
         console.log('wss:incoming: no req, no conf. wtf?');
@@ -38,29 +44,43 @@ function WebSocketWrapper(server) {
     });
 
     connection.on('close', () => {
+      console.log('connection close is called');
       //removeConnection(connection)
     });
 
   });
 
-  showAllConnections = function () {
-    socketArray.forEach((entry) => {
-      console.log('wss:showAllConnections: ' + entry.id);
+  showAllForwards = () => {
+    forwardingArray.forEach((entry) => {
+      console.log('showAllConnections: ' + entry.evseSerial );
     });
   }
+  showAllConnections = () => {
+    socketArray.forEach((entry) => {
+      console.log('showAllConnections: ' + entry.evseSerial + ' from ' + JSON.stringify(entry.peer));
+    });
+  }
+  findEVSESerial = function(connection) {
+    var found = socketArray.find(({ peer }) => peer == connection.socket._peername);
+    //console.log('found this: ' + found);
+    return found.evseSerial;
+  }
 
+  ////////////////////////////////////////////
+  // unique ID for identifying evse
+  // not IP. It's constantly changing. not every hour tho
   storeConnection = function (evseSerial, connection, forceRemove) {
-    var found = socketArray.find(({ id }) => id == evseSerial);
+    var found = socketArray.find( i  => i.evseSerial == evseSerial);
     if (!found || found.conn.socket.readyState > 1 || forceRemove) {
       removeConnection(evseSerial);
-      var sock = { id: `${evseSerial}`, conn: connection };
+      var sock = { evseSerial: `${evseSerial}`, peer: connection.socket._peername, conn: connection };
       socketArray.push(sock);
-      console.log(`store connection:  ${evseSerial}`);
+      //console.log(`store connection:  ${JSON.stringify(sock)}`);
     }
   }
 
   removeConnection = function (evseSerial) {
-    var index = socketArray.findIndex(i => i.id == evseSerial);
+    var index = socketArray.findIndex(i => i.evseSerial == evseSerial);
     if (index >= 0) {
       socketArray[index].conn.close();
       socketArray.splice(index, 1);
@@ -70,11 +90,11 @@ function WebSocketWrapper(server) {
 
   sendTo = function (evseSerial, connection, data) {
     //console.log(`websocketWrapper:sendTo: ${JSON.stringify(data)}`);
-    if (evseSerial == '') {
+    if (!evseSerial) {
       connection.send(JSON.stringify(data));
     }
     else {
-      var found = socketArray.find(({ id }) => id == evseSerial);
+      var found = socketArray.find( i  => i.evseSerial == evseSerial);
       if (found) {
         found.conn.send(JSON.stringify(data));
         return true;
@@ -97,12 +117,12 @@ function WebSocketWrapper(server) {
   }
 
   enlistForwarding = function (evseSerial, callback) {
-    var cb = { id: evseSerial, forward: callback };
+    var cb = { evseSerial: evseSerial, forward: callback };
     forwardingArray.push(cb);
   }
 
   forwardTo = function (evseSerial, param1, param2) {
-    var found = forwardingArray.find(({ id }) => id == evseSerial);
+    var found = forwardingArray.find( i => i.evseSerial == evseSerial);
     if (!found) {
       console.log('wss:forwardTo: forwardTo weve got problem.');
       return;
@@ -115,8 +135,7 @@ function WebSocketWrapper(server) {
     }
   }
   delistForwarding = function (evseSerial) {
-    //var index = forwardingArray.indexOf(({ id }) => id == String(evseSerial));
-    var index = forwardingArray.findIndex(i => i.id == evseSerial);
+    var index = forwardingArray.findIndex(i => i.evseSerial == evseSerial);
     if (index >= 0) {
       forwardingArray.splice(index, 1);
     }
@@ -128,12 +147,14 @@ function WebSocketWrapper(server) {
 
   const websocketWrapper = {
     storeConnection,
+    findEVSESerial,
     removeConnection,
     sendTo,
     sendAndReceive,
     enlistForwarding,
     delistForwarding,
-    showAllConnections
+    showAllConnections,
+    showAllForwards
   }
   return websocketWrapper;
 }

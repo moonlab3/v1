@@ -22,9 +22,6 @@ function DBConnector(dbms) {
       if(err) {
         console.log('dbConnector:submit: ' + err);
       }
-      else {
-        //console.log('dbConnector:submit: success ' + res);
-      }
     });
   }
 
@@ -43,7 +40,10 @@ function DBConnector(dbms) {
         trxCount++;
         dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
         //console.log(`dbConnector:submitSync: success with ${res.length} records, fetched in ${end - start}ms. average: ${dbSpeedAvg}`);
-        resolve(res);
+        if(res.length > 0)
+          resolve(res);
+        else
+          resolve(null);
       });
     });
   }
