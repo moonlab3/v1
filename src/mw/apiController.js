@@ -208,14 +208,6 @@ function APIController(server) {
 
   wsReq = async (req, conn) => {
 
-    //////////////////////////////////////////////
-    // OCPP 2.0
-    toCWJY = (buffer) => {
-      var arr = JSON.parse(buffer);
-      var cwjy = { uuid: arr[1], action: arr[2], pdu: arr[3] };
-      return cwjy;
-    }
-
     //req.evseSerial = connCP.findEVSESerial(conn);
     var conf = { messageType: 3, action: req.action, pdu: {} };
     switch (req.action) {

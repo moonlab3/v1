@@ -17,7 +17,8 @@ function WebSocketWrapper(server) {
       //console.log(JSON.stringify(connection.socket._peername));
       try {
         var incoming = JSON.parse(message.utf8Data);
-        if (!incoming.messageType) {
+        var parsed = { messageType: incoming[0], action: incoming[1], pdu: incoming[2] };
+        if (parsed.messageType < 2 || parsed.messageType > 4) {
           console.log('websocket server: message is not valid for this system');
           return;
         }
@@ -25,22 +26,17 @@ function WebSocketWrapper(server) {
         console.log('websocket server: message is not valid json format');
         return;
       }
+      switch (parsed.messageType) {
+        case 2:
+          forwardTo('general', parsed, connection);
+          break;
+        case 3:
+          forwardTo(findEVSESerial(connection), parsed, null);
+          break;
+        case 4:
+          break;
+      }
 
-      if (incoming.messageType == 2) {
-        forwardTo('general', incoming, connection);
-      }
-      else if (incoming.messageType == 3) {
-        ////////////////////////////////////////////////////////////
-        // serious problem
-        // serious problem
-        // serious problem
-        // incoming.evseSerial is not allowed
-        //forwardTo(incoming.evseSerial, incoming, null);
-        forwardTo(findEVSESerial(connection), incoming, null);
-      }
-      else {
-        console.log('wss:incoming: no req, no conf. wtf?');
-      }
     });
 
     connection.on('close', () => {
@@ -90,13 +86,15 @@ function WebSocketWrapper(server) {
 
   sendTo = function (evseSerial, connection, data) {
     //console.log(`websocketWrapper:sendTo: ${JSON.stringify(data)}`);
+    var sending = [data.messageType, data.action, data.pdu];
+    console.log('sending: ' + JSON.stringify(sending));
     if (!evseSerial) {
-      connection.send(JSON.stringify(data));
+      connection.send(JSON.stringify(sending));
     }
     else {
       var found = socketArray.find( i  => i.evseSerial == evseSerial);
       if (found) {
-        found.conn.send(JSON.stringify(data));
+        found.conn.send(JSON.stringify(sending));
         return true;
       }
       else {
