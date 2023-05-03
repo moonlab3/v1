@@ -35,7 +35,10 @@ function DBConnector(dbms) {
         if (err) {
           console.log('dbConnector:submitSync: ' + err);
           resolve(null);
+          //console.log('DO i need return?');
+          return;
         }
+        console.log('query: ' + query);
         var end = Date.now();
         trxCount++;
         dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;

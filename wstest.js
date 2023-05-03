@@ -29,13 +29,13 @@ function init() {
   }
 
   if(target == 'local') {
-    client.connect('wss://127.0.0.1:3001/', 'hclab-protocol');
+    client.connect('wss://127.0.0.1:3001/', 'hclab-protocol', evseser);
   }
   else if(target == 'aws') {
-    client.connect('wss://34.207.158.106:3001/', 'hclab-protocol');
+    client.connect('wss://34.207.158.106:3001/', 'hclab-protocol', evseser);
   }
   else if (target == 'mac') {
-    client.connect('wss://10.20.20.28:3001', 'hclab-protocol');
+    client.connect('wss://10.20.20.28:3001', 'hclab-protocol', evseser);
   }
   else {
     console.log('usage: wstest.js {target} {evse}');
@@ -50,7 +50,7 @@ client.on('connect', (connection) => {
   var command;
 
   connection.send(`[2, "BootNotification",
-                  {"chargePointModel":"hcLab1", "chargePointVendor": "hclab", "chargeBoxSerialNumber": "${evseser}" }]`);
+                  {"chargePointModel":"hcLab1", "chargePointVendor": "hclab"}]`);
         /////////////////////////////////////////////// check cpID and evseSerial
   
   var stdin = process.openStdin();

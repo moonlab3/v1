@@ -12,9 +12,11 @@ function WebSocketWrapper(server) {
 
   wss.on('request', function (request) {
     var connection = request.accept('hclab-protocol', request.origin);
+    //storeConnection(request.origin, connection, true);
 
     connection.on('message', (message) => {
-      //console.log(JSON.stringify(connection.socket._peername));
+      //console.log('request.origin: ' + request.origin);
+
       try {
         var incoming = JSON.parse(message.utf8Data);
         var parsed = { messageType: incoming[0], action: incoming[1], pdu: incoming[2] };
@@ -28,10 +30,19 @@ function WebSocketWrapper(server) {
       }
       switch (parsed.messageType) {
         case 2:
-          forwardTo('general', parsed, connection);
+          if(parsed.action == 'BootNotification') {
+            //forwardTo('boot', parsed, connection);
+            storeConnection(request.origin, connection, true);
+            forwardTo('boot', parsed, request.origin);
+          }
+          else {
+            //forwardTo('general', parsed, connection);
+            forwardTo('general', parsed, request.origin);
+          }
           break;
         case 3:
-          forwardTo(findEVSESerial(connection), parsed, null);
+          //forwardTo(findEVSESerial(connection), parsed, null);
+          forwardTo(request.origin, parsed, null);
           break;
         case 4:
           break;
@@ -65,11 +76,13 @@ function WebSocketWrapper(server) {
   ////////////////////////////////////////////
   // unique ID for identifying evse
   // not IP. It's constantly changing. not every hour tho
+  // JSTech will cover this up. 
   storeConnection = function (evseSerial, connection, forceRemove) {
     var found = socketArray.find( i  => i.evseSerial == evseSerial);
     if (!found || found.conn.socket.readyState > 1 || forceRemove) {
       removeConnection(evseSerial);
-      var sock = { evseSerial: `${evseSerial}`, peer: connection.socket._peername, conn: connection };
+      //var sock = { evseSerial: `${evseSerial}`, peer: connection.socket._peername, conn: connection };
+      var sock = { evseSerial: `${evseSerial}`, conn: connection };
       socketArray.push(sock);
       //console.log(`store connection:  ${JSON.stringify(sock)}`);
     }
@@ -84,28 +97,25 @@ function WebSocketWrapper(server) {
 
   }
 
-  sendTo = function (evseSerial, connection, data) {
+  //sendTo = function (evseSerial, connection, data) {
+  sendTo = function (evseSerial, data) {
     //console.log(`websocketWrapper:sendTo: ${JSON.stringify(data)}`);
     var sending = [data.messageType, data.action, data.pdu];
     console.log('sending: ' + JSON.stringify(sending));
-    if (!evseSerial) {
-      connection.send(JSON.stringify(sending));
+
+    var found = socketArray.find(i => i.evseSerial == evseSerial);
+    if (found) {
+      found.conn.send(JSON.stringify(sending));
+      return true;
     }
     else {
-      var found = socketArray.find( i  => i.evseSerial == evseSerial);
-      if (found) {
-        found.conn.send(JSON.stringify(sending));
-        return true;
-      }
-      else {
-        console.warn(`wss:sendTo: No such client. ${evseSerial} needs rebooting.`);
-        return false;
-      }
+      console.warn(`wss:sendTo: No such client. ${evseSerial} needs rebooting.`);
+      return false;
     }
   }
 
   sendAndReceive = function (evseSerial, data) {
-    sendTo(evseSerial, null, data);
+    sendTo(evseSerial, data);
     return new Promise((resolve, reject) => {
       enlistForwarding(evseSerial, (result) => {
         delistForwarding(evseSerial);

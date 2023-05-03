@@ -1,3 +1,4 @@
+const EARTH_RADIUS = 6371;
 const OCPP_HEARTBEAT_INTERVAL_SECS = 60;
 const SQL_RESERVE_DURATION = 1500;
 const SQL_ANGRY_EXPIRY_DURATION = 1500;
@@ -24,21 +25,18 @@ function DBController (dbms) {
     switch (cwjy.action) {
       case 'EVSECheck':
       case 'EVSEInformation':
-        query = `SELECT status, occupyingUserId, occupyingEnd FROM evse
+        query = `SELECT evseSerial, status, occupyingUserId, occupyingEnd FROM evse
                  WHERE evseSerial = '${cwjy.evseSerial}'`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'ChargingStatus':
         query = `SELECT * FROM bill 
                WHERE userId = '${cwjy.userId}' AND evseSerial = '${cwjy.evseSerial}' AND finished = null`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'Reserve':                                                       // DONE DONE DONE DONE
         query = `UPDATE evse
                SET status = 'Reserved', occupyingUserId = '${cwjy.userId}', 
                occupyingEnd = CURRENT_TIMESTAMP + ${SQL_RESERVE_DURATION}
                WHERE evseSerial = '${cwjy.evseSerial}'`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'Angry':
         //query = `INSERT INTO notification (recipientId, expiry, type) VALUES ('${cwjy.userId})`;
@@ -47,47 +45,37 @@ function DBController (dbms) {
         break;
       case 'Report':
         break;
+      case 'ShowAllEVSE':
+        query = `SELECT * FROM evse WHERE chargePointId = '${cwjy.chargePointId}'`;
+        break;
+      case 'ShowAllCP':
+        //var box = getBox(cwjy.current.lat, cwjy.current.lng, cwjy.current.rng);
+        var box = getBox(cwjy.lat, cwjy.lng, cwjy.rng);
+        query = `SELECT * FROM chargepoint 
+                 WHERE lat < '${box.top}' AND lat > '${box.bottom}'
+                  AND lng < '${box.right}' AND lng > '${box.left}'`;
+        console.log(query);
+        break;
       case 'UserHistory':
         query = `SELECT * FROM BILL WHERE userId = '${cwjy.userId}'`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'BootNotification':                                    
         query = `SELECT evseSerial FROM evse LEFT JOIN chargepoint 
               ON evse.chargePointId = chargepoint.chargePointId AND evse.evseSerial = '${cwjy.pdu.chargeBoxSerialNumber}'
               WHERE chargepoint.vendor = '${cwjy.pdu.chargePointVendor}' AND chargepoint.model = '${cwjy.pdu.chargePointModel}'`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'Authorize':                                           
         query = `SELECT authStatus FROM user WHERE userId = '${cwjy.pdu.idTag}'`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'HeartBeat':                                           
         query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP 
               WHERE evseSerial = '${cwjy.evseSerial}'`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'MeterValues':
         break;
       case 'StartTransaction':
         cwjy.pdu.transactionId = trxCount++;
         query = `SELECT capacity FROM evse WHERE evseSerial = '${cwjy.evseSerial}'`;
-        result = await dbConnector.submitSync(query);
-
-        //////////////////////////////////////////
-        // calculation for occupyingEnd
-
-        query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${cwjy.pdu.idTag}' 
-               WHERE evseSerial = '${cwjy.evseSerial}';
-               INSERT INTO bill (started, evseSerial, userId, trxId, bulkSoc, fullSoc) 
-               VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${cwjy.pdu.idTag}',
-               '${cwjy.pdu.transactionId}', '${cwjy.pdu.bulkSoc}', '${cwjy.pdu.fullSoc}');
-               UPDATE bill LEFT JOIN evse ON bill.evseSerial = evse.evseSerial
-               SET bill.chargePointId = evse.chargePointId, bill.ownerId = evse.ownerId
-               WHERE bill.trxId = '${cwjy.pdu.transactionId}';
-               REPLACE INTO recent (userId, chargePointId)
-               SELECT occupyingUserId, chargePointId FROM evse WHERE evseSerial='${cwjy.evseSerial}'`;
-        // 1000: epoch to tiestamp
-        result = await dbConnector.submitSync(query);
         break;
       case 'StatusNotification':
         if (cwjy.userId)
@@ -98,27 +86,20 @@ function DBController (dbms) {
         else
           query = `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = null, occupyingEnd = null
                  WHERE evseSerial = '${cwjy.evseSerial}'`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'StopTransaction':
         query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}';
               UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), 
               termination = '${cwjy.pdu.reason}', meterStop = '${cwjy.pdu.meterStop}' 
               WHERE trxId = '${cwjy.pdu.transactionId}';`;
-        // 1000: epoch to tiestamp
-        //INSERT INTO notification (recipientId, expiry, type) 
-        //VALUES ()`;
 
-        result = await dbConnector.submitSync(query);
         break;
       case 'RemoteStartTransaction':
         query = `UPDATE evse SET status = 'Preparing', occupyingUserId = '${cwjy.userId}'
                WHERE evseSerial = '${cwjy.evseSerial}`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'RemoteStopTransaction':
         query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}'`;
-        result = await dbConnector.submitSync(query);
         break;
       case 'ChangeAvailability':
       case 'ChangeConfiguration':
@@ -129,6 +110,7 @@ function DBController (dbms) {
       case 'Reset':
         break;
     }
+    result = await dbConnector.submitSync(query);
 
     temp = { messageType: 3, action: cwjy.action, pdu: {} };
     console.log(`logics query result: ${JSON.stringify(result)}`);
@@ -137,6 +119,8 @@ function DBController (dbms) {
     // result message making from here
     switch (cwjy.action) {
       case 'UserHistory':
+      case 'ShowAllEVSE':
+      case 'ShowAllCP':
         returnValue = result;
         break;
       case 'Alarm':
@@ -159,9 +143,33 @@ function DBController (dbms) {
           temp.pdu = { idTagInfo: { status: 'Invalid' } };
         else
           temp.pdu = { idTagInfo: { status: result[0].authStatus } };
+        returnValue = temp;
+        break;
+      case 'HeartBeat':
+        temp.pdu = { currentTime: Date.now()};
+        returnValue = temp;
+        break;
       case 'StartTransaction': 
+        console.log('starttransaction: ' + JSON.stringify(result));
+        var est = Date.now() / 1000;
+        if(cwjy.pdu.fullSoc > cwjy.pdu.bulkSoc > 0 )
+          est += (cwjy.pdu.fullSoc - cwjy.pdu.bulkSoc) / result[0].capacity * 3600;
+
+        query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${cwjy.pdu.idTag}', occupyingEnd = FROM_UNIXTIME(${est}) 
+               WHERE evseSerial = '${cwjy.evseSerial}';
+               INSERT INTO bill (started, evseSerial, userId, trxId, bulkSoc, fullSoc)
+               VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${cwjy.pdu.idTag}',
+               '${cwjy.pdu.transactionId}', '${cwjy.pdu.bulkSoc}', '${cwjy.pdu.fullSoc}');
+               UPDATE bill LEFT JOIN evse ON bill.evseSerial = evse.evseSerial
+               SET bill.chargePointId = evse.chargePointId, bill.ownerId = evse.ownerId
+               WHERE bill.trxId = '${cwjy.pdu.transactionId}';
+               REPLACE INTO recent (userId, chargePointId)
+               SELECT occupyingUserId, chargePointId FROM evse WHERE evseSerial='${cwjy.evseSerial}'`;
+        // 1000: epoch to tiestamp
+        dbConnector.submit(query);
       case 'StopTransaction':  
       case 'StatusNotification':
+      case 'MeterValues':
         returnValue = temp;
         break;
       case 'BootNotification':
@@ -174,22 +182,23 @@ function DBController (dbms) {
                    WHERE evseSerial = '${cwjy.pdu.chargeBoxSerialNumber}'`;
           dbConnector.submit(query);
         }
-        /*
-        for (var index in result) {
-          if (result[index].evseSerial == cwjy.evseSerial) {
-            temp.pdu.status = "Accepted";
-            break;
-          }
-          if (!temp)
-            temp.pdu.status = "Rejected";
-        }
-        */
         returnValue = temp;
         break;
     }
 
     if(callback)
       callback(returnValue);
+  }
+
+  getBox = (lat, lng, rng)  => {
+    var latPerKM = ( 1 / (EARTH_RADIUS * 1 * (Math.PI / 180))) / 1000;
+    var lngPerKM = ( 1 / (EARTH_RADIUS * 1 * (Math.PI / 180) * Math.cos(lat * Math.PI / 180))) / 1000;
+
+    var box = {top: (parseFloat(lat) + (rng * latPerKM)), 
+               bottom: (parseFloat(lat) - (rng * latPerKM)),
+               right: (parseFloat(lng) + (rng * lngPerKM)),
+               left: (parseFloat(lng) - (rng * lngPerKM))};
+    return box;
   }
 
   setTxCount = async() => {
