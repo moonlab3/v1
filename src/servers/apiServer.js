@@ -1,3 +1,5 @@
+// API server. constructor, initiation
+
 process.title = process.argv[2];
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 process.env.NODE_APP_INSTANCE = 1;
@@ -11,10 +13,12 @@ var key = fs.readFileSync(__dirname + '/selfsigned.key');
 var cert = fs.readFileSync(__dirname + '/selfsigned.crt');
 const server = https.createServer({key:key, cert: cert}, app);
 
-const v1Router = require('../mw/v1Router')(server);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false}));
+
+// Router for mobile app API
+const v1Router = require('../mw/v1Router')(server);
 app.use('/v1', v1Router);
 
 

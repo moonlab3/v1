@@ -1,3 +1,4 @@
+// websocket wrapper for charge point communication.
 
 function WebSocketWrapper(server) {
   const WebSocketServer = require('websocket').server;
@@ -12,20 +13,18 @@ function WebSocketWrapper(server) {
 
   wss.on('request', function (request) {
     var connection = request.accept('hclab-protocol', request.origin);
-    //storeConnection(request.origin, connection, true);
 
     connection.on('message', (message) => {
-      //console.log('request.origin: ' + request.origin);
 
       try {
         var incoming = JSON.parse(message.utf8Data);
         var parsed = { messageType: incoming[0], action: incoming[1], pdu: incoming[2] };
         if (parsed.messageType < 2 || parsed.messageType > 4) {
-          console.log('websocket server: message is not valid for this system');
+          console.log('websocket server: message is not valid. (messageType: 2, 3 or 4)');
           return;
         }
       } catch (e) {
-        console.log('websocket server: message is not valid json format');
+        console.log('websocket server: message is not valid');
         return;
       }
       switch (parsed.messageType) {

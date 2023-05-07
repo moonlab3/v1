@@ -16,22 +16,25 @@ const controller = require('../mw/logics')(dbms);
 
 
 io.of('apiServer').on('connection', (socket) => {
+  // communication channel with API server
+  // socket router for mobile app and evse API
   console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
   
   socket.onAny(controller.preProcess);
-  //socket.on('withReturn', controller.withReturn);
-
   socket.on('cwjy', controller.extRequest);
 
 });
 
 io.of('nnmServer').on('connection', (socket) => {
+  // communication channel with Notification and Mailing server
+  // socket router for mobile app and evse API
   console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
   socket.onAny(controller.preProcess);
   socket.on('cwjy', controller.nnmRequest);
 });
 
 server.listen(dbServer.port, ()=> {
+  // DB server initiation. setTxCount is for transaction ID(number)
   console.log(`DB server on. ${new Date(Date.now())} port: ${dbServer.port} `);
   controller.setTxCount();
 

@@ -6,34 +6,9 @@ function APIController(server) {
   var lockArray = [];
 
 
-  /*
-  hscanNotLoggedIn = async (req, res) => {
-    waitingJobs++;
-    var cwjy = { action: "EVSEInformation", evseSerial: req.params.evseSerial, userId: null};
-    var result = await connDBServer.sendAndReceive(cwjy);
-
-    res.json(result);
-    res.end();
-    waitingJobs--;
-  }
-  hscanLoggedIn = async (req, res) => {
-    waitingJobs++;
-    var cwjy = { action: "EVSEInformation", evseSerial: req.params.evseSerial, userId: req.params.userId};
-    var result = await connDBServer.sendAndReceive(cwjy);
-
-    res.json(result);
-    res.end();
-    waitingJobs--;
-  }
-  */
-
   hscanAction = async (req, res) => {
     waitingJobs++;
     var reqToCP = { evseSerial: req.query.evse };
-    ////////////////////////////////////////////
-    // todo
-    // send angry birds
-    // cancel charging
 
     /////////////////////////////////////////////////
     // always check EVSE status. Right? No?
@@ -119,11 +94,6 @@ function APIController(server) {
           response.responseCode = 'Rejected';
         }
         break;
-      //////////////////////////////////////////////////////////////////////////
-      // DataTransfer for Reserve and ChangeLED
-      // DataTransfer for Reserve and ChangeLED
-      // DataTransfer for Reserve and ChangeLED
-      // DataTransfer for Reserve and ChangeLED
       case 'Reserve':
         if(result.status == 'Available') {
           cwjy = { action: 'Reserve', userId: req.query.user, evseSerial: req.query.evse};
@@ -199,12 +169,13 @@ function APIController(server) {
     waitingJobs--;
   }
 
-  getHostBasic = (req, res) => {
-
+  csmsBasic = (req, res) => {
   }
 
-  getHostDetail = (req, res) => {
+  csmsReport = (req, res) => {
+  }
 
+  csmsControl = (req, res) => {
   }
 
   getUserChargingHistory = async (req, res) => {
@@ -218,6 +189,8 @@ function APIController(server) {
 
   }
 
+  getUserFavo = (req, res) => {
+  }
   getUserRecentVisit = (req, res) => {
   }
   getUserChargingStatus = async (req, res) => {
@@ -230,8 +203,6 @@ function APIController(server) {
     waitingJobs--;
   }
 
-  getUserFavo = (req, res) => {
-  }
 
   evseBoot = async (req, conn) => {
     var conf = await connDBServer.sendAndReceive(req);
@@ -345,8 +316,9 @@ function APIController(server) {
     getChargePointInfo,
     evseBoot,
     evseRequest,
-    getHostBasic,
-    getHostDetail
+    csmsBasic,
+    csmsReport,
+    csmsControl
   }
 
   connCP.enlistForwarding('general', evseRequest);

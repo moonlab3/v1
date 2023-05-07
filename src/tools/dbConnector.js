@@ -14,10 +14,11 @@ function DBConnector(dbms) {
     if (err) throw err;
     console.error(`dbConnector:init: mySQL connected. ${new Date(Date.now())} port: ${dbms.port}`);
   });
+
+  // query submit without return
   submit = (query) => {
     if (!query)
       return;
-    //console.log('async sql: ' + query);
     dbConn.query(query, (err, res) => {
       if(err) {
         console.log('dbConnector:submit: ' + err);
@@ -25,17 +26,16 @@ function DBConnector(dbms) {
     });
   }
 
-  submitSync = (query) => {
+  // query submit with return
+  submitSync = (query) => {   
     if (!query)
       return null;
     return new Promise((resolve, reject) => {
-      //console.log('sync sql: ' + query);
       var start = Date.now();
       dbConn.query(query, (err, res) => {
         if (err) {
           console.log('dbConnector:submitSync: ' + err);
           resolve(null);
-          //console.log('DO i need return?');
           return;
         }
         console.log('query: ' + query);

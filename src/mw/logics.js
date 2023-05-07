@@ -24,12 +24,14 @@ function DBController (dbms) {
     var returnValue, query, result, temp;
     switch (cwjy.action) {
       case 'EVSECheck':
-      case 'EVSEInformation':
+        query = `SELECT * FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`;
+        /*
         query = `SELECT evseSerial, status, occupyingUserId, occupyingEnd FROM evse
                  WHERE evseSerial = '${cwjy.evseSerial}'`;
+                 */
         break;
       case 'ChargingStatus':
-        query = `SELECT * FROM bill 
+        query = `SELECT * FROM billbasic 
                WHERE userId = '${cwjy.userId}' AND evseSerial = '${cwjy.evseSerial}' AND finished = null`;
         break;
       case 'Reserve':                                                       // DONE DONE DONE DONE
@@ -46,18 +48,19 @@ function DBController (dbms) {
       case 'Report':
         break;
       case 'ShowAllEVSE':
-        query = `SELECT * FROM evse WHERE chargePointId = '${cwjy.chargePointId}'`;
+        query = `SELECT * FROM evseincp WHERE chargePointId = '${cwjy.chargePointId}'`;
         break;
       case 'ShowAllCP':
         //var box = getBox(cwjy.current.lat, cwjy.current.lng, cwjy.current.rng);
         var box = getBox(cwjy.lat, cwjy.lng, cwjy.rng);
-        query = `SELECT * FROM chargepoint 
+        //query = `SELECT * FROM chargepoint 
+        query = `SELECT * FROM cpbasic 
                  WHERE lat < '${box.top}' AND lat > '${box.bottom}'
                   AND lng < '${box.right}' AND lng > '${box.left}'`;
         console.log(query);
         break;
       case 'UserHistory':
-        query = `SELECT * FROM BILL WHERE userId = '${cwjy.userId}'`;
+        query = `SELECT * FROM billbasic WHERE userId = '${cwjy.userId}'`;
         break;
       case 'BootNotification':                                    
         query = `SELECT evseSerial FROM evse LEFT JOIN chargepoint 
@@ -129,7 +132,6 @@ function DBController (dbms) {
         break;
       case 'ChargingStatus':
       case 'Angry':
-      case 'EVSEInformation':
       case 'EVSECheck':     
         //if(!result || !result[0])
         if(!result)
@@ -202,7 +204,7 @@ function DBController (dbms) {
   }
 
   setTxCount = async() => {
-    var query = `SELECT MAX(trxId) AS max FROM bill;`;
+    var query = `SELECT MAX(trxId) AS max FROM billbasic;`;
     var result = await dbConnector.submitSync(query);
     trxCount = result[0].max + 1;
     console.log('setTxCount: ' + trxCount);
