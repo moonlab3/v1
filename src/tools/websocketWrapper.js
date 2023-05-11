@@ -1,3 +1,4 @@
+const CONNECTION_TIMEOUT = 10 * 1000;
 // websocket wrapper for charge point communication.
 
 function WebSocketWrapper(server) {
@@ -106,6 +107,11 @@ function WebSocketWrapper(server) {
   sendAndReceive = function (origin, data) {
     sendTo(origin, data);
     return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        console.log('timeout. 10 seconds');
+        resolve(null);
+        return;
+      }, CONNECTION_TIMEOUT);
       enlistForwarding(origin, (result) => {
         delistForwarding(origin);
         resolve(result);

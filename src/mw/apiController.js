@@ -16,24 +16,17 @@ function APIController(server) {
 
     var cwjy = { action: "EVSECheck", userId: req.query.user, evseSerial: req.query.evse};
     var result = await connDBServer.sendAndReceive(cwjy);
-    if(!result) {
+    if(!result || !req.query.user) {
       console.log('result is null');
       waitingJobs--;
-      res.response = { responseCode: 'Rejected', result: [] };
+      res.response = { responseCode: 'Rejected-Wrong Parameters', result: [] };
       next();
       return;
     }
-
     var response = {responseCode: 'Rejected', result: result};
 
-    if(!req.query.user) {
-      res.response = response;
-      waitingJobs--;
-      next();
-      return;
-    }
     if (req.query.action == 'Scan') {
-      console.log(`hscanhscanhscan: [${result[0].occupyingUserId}] == [${req.query.user}]`);
+      //console.log(`hscanhscanhscan: [${result[0].occupyingUserId}] == [${req.query.user}]`);
       switch (result[0].status) {
         case 'Available':
           req.query.action = 'Charge';
@@ -63,22 +56,8 @@ function APIController(server) {
             && result[0].occupyingUserId == req.query.user)) {
           console.log('hscanaction: its ok to charge');
         }
-        else if(result[0].status == 'Unavailable'){
-          // TODO
-          // The EVSE is not booted
-          // add more message to client
-          response.responseCode = 'Rejected';
-          break;
-        }
-        else if(result[0].status == 'Faulted') {
-          // TODO
-          // The EVSE is out of order
-          // add more message to client
-          response.responseCode = 'Faulted';
-          break;
-        }
         else {
-          response.responseCode = 'Wrong';
+          response.responseCode = 'Rejected-EVSE ' + result[0].status;
           break;
         }
 
@@ -89,6 +68,11 @@ function APIController(server) {
         reqToCP = { messageType: 2, action: 'RemoteStartTransaction', pdu: { idTag: req.query.user} };
         result = await connCP.sendAndReceive(req.query.evse, reqToCP);
         console.log('start charge evse result: ' + JSON.stringify(result));
+        if (!result) {
+          console.log('timeout timeout');
+          response.responseCode = 'Rejected-EVSE Problem';
+          break;
+        }
         if (result.pdu.status == 'Accepted') {
           cwjy = { action: "StatusNotification", userId: req.query.user, evseSerial: req.query.evse,
             pdu: { status: 'Preparing' } };
@@ -99,7 +83,7 @@ function APIController(server) {
         }
         else {
           console.log('hscanAction: EVSE says Reject ');
-          response.responseCode = 'Rejected';
+          response.responseCode = 'Rejected-EVSE Problem';
         }
 
         /////////////////////////////////////////////
@@ -138,17 +122,16 @@ function APIController(server) {
       case 'Cancel':
         if(result[0].status == 'Charging' && result[0].occupyingUserId == req.query.user) {
           reqToCP = {messageType: 2, action: 'RemoteStopTransaction', pdu: {transactionId: result.trxId}};
-          //result = await connCP.sendAndReceive(req.params.evseSerial, reqToCP);
           result = await connCP.sendAndReceive(req.query.evse, reqToCP);
           if(result) {
             if (result.pdu.status == 'Accepted') {
               cwjy = { action: 'ChargingStatus', userId: req.query.user, evseSerial: req.query.evse };
-              //result = await connDBServer.sendAndReceive(cwjy);
               connDBServer.sendOnly(cwjy);
               response.responseCode = 'Accepted';
+              response.result[0].status = 'Finishing';
             }
             else {
-              // EVSE error
+              // EVSE says no
               response.responseCode = result.pdu.status; 
             }
           }
