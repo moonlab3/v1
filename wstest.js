@@ -47,7 +47,7 @@ init();
 
 client.on('connect', (connection) => {
   var repeatCount = 0, repeats = 0;
-  var command;
+  var command, last;
 
   connection.send(`[2, "BootNotification",
                   {"chargePointModel":"hcLab1", "chargePointVendor": "hclab"}]`);
@@ -67,7 +67,7 @@ client.on('connect', (connection) => {
           console.log('usage: auth {userid}');
         break;
       case 'heart':
-        connection.send(`[2, "HeartBeat", {}]`);
+        connection.send(`[2, "Heartbeat", {}]`);
         break;
       case 'start':
         if(command[1] && command[2] && command[3])
@@ -105,9 +105,9 @@ client.on('connect', (connection) => {
         break;
       case 'response':
         if(command[1])
-          connection.send(`[3, "${command[1]}", {"status": "${command[2]}"}]`);
+          connection.send(`[3, "${last}", {"status": "${command[1]}"}]`);
         else
-          console.log('usage: response {transaction name} {accept or reject}');
+          console.log('usage: response {accepted or rejected}');
         break;
       case 'repeat':
         repeatCount = 0;
@@ -135,6 +135,7 @@ client.on('connect', (connection) => {
 
   connection.on('message', (message) => {
     console.log('rcved: ' + JSON.stringify(message.utf8Data));
+    last = JSON.parse(message.utf8Data)[1];
   });
 
 

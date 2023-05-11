@@ -2,7 +2,7 @@ process.title = process.argv[2];
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 process.env.NODE_APP_INSTANCE = 1;
 
-const NNMSERVER_MONITORING_INTERVAL_SECS = 60;
+const NNMSERVER_MONITORING_INTERVAL_SECS = 10;
 
 const config = require('config');
 const dbms = config.get('dbms');
@@ -21,15 +21,16 @@ function updateRequest(cwjy) {
 function init() {
   console.log('notification and monitoring server on.');
   monitor.registerSender(updateRequest);
-  startMonitor(NNMSERVER_MONITORING_INTERVAL_SECS);
+  //startMonitor(NNMSERVER_MONITORING_INTERVAL_SECS);
+  startMonitor(60 * 10);
 }
 
 function stopMonitor() {
   clearInterval(monitorIns);
 }
 
-function startMonitor(min) {
-  monitorIns = setInterval(monitor.watch, 1000 * 60 * min);
+function startMonitor(sec) {
+  monitorIns = setInterval(monitor.watch, 1000 * sec);
 }
 
 init();
