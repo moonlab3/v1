@@ -14,10 +14,11 @@ var V1RouterWrapper = function (server) {
 
   router.get('/user/chargingstatus', controller.getUserChargingStatus, controller.writeResponse); // parameters: userid
   router.get('/user/history', controller.getUserChargingHistory, controller.writeResponse);       // parameters: userid, from-date, to-date
-  router.get('/user/favorite', controller.getUserFavo, controller.writeResponse);                 // parameters: userid
-  router.get('/user/recent', controller.getUserRecentVisit, controller.writeResponse);            // deprecate. use favorite
+  router.get('/user/recent', controller.getUserFavo, controller.writeResponse);            // deprecate. use favorite
   router.get('/chargepoint', controller.getChargePointInfo, controller.writeResponse);            // parameters: chargepointid or set of (lat, lng, rng)
 
+  router.get('/user/favorite', controller.getUserFavo, controller.writeResponse);                 // parameters: userid
+  router.put('/user/favorite', controller.putUserFavo, controller.writeResponse);                 // parameters: userid
   // CSMS (Charging Station Management System) API
   router.get('/host', controller.csmsBasic, controller.writeResponse);                            // parameters: userid
   router.get('/host/report', controller.csmsReport, controller.writeResponse);                    // parameters: userid, from-date, to-date

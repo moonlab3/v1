@@ -38,13 +38,15 @@ function DBConnector(dbms) {
           resolve(null);
           return;
         }
-        console.log('query: ' + query);
         var end = Date.now();
         trxCount++;
         dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
-        //console.log(`dbConnector:submitSync: success with ${res.length} records, fetched in ${end - start}ms. average: ${dbSpeedAvg}`);
+
+        console.log(`query: ${query}\n result: ${JSON.stringify(res)}`);
         if(res.length > 0)
           resolve(res);
+        else if(res.length == undefined)
+          resolve('ok');
         else
           resolve(null);
       });

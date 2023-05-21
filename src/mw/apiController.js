@@ -86,6 +86,8 @@ function APIController(server) {
           response.responseCode = 'Rejected-EVSE Problem';
         }
 
+        cwjy = { action: "PutUserFavo", userId: req.body.user, chargePointId: req.body.cp, favo: 'recent' };
+        connDBServer.sendOnly(cwjy);
         /////////////////////////////////////////////
         // semaphore location   further analysis is required
         unlockActionProcess(req.query.evse);
@@ -223,10 +225,40 @@ function APIController(server) {
     waitingJobs--;
   }
 
-  getUserFavo = (req, res, next) => {
+  getUserFavo = async (req, res, next) => {
+    waitingJobs++;
+    var cwjy = { action: "GetUserFavo", userId: req.query.user, favo: req.query.favo};
+    var result = await connDBServer.sendAndReceive(cwjy);
+    if(!result)
+      res.response = { responseCode: 'Wrong Parameter', result: []};
+    else
+      res.response = { responseCode: 'Accepted', result: result };
+
+    next();
+    waitingJobs--;
   }
-  getUserRecentVisit = (req, res, next) => {
+
+  putUserFavo = async (req, res, next) => {
+    waitingJobs++;
+    if (!req._body) {
+      res.response = { responseCode: 'Rejected', result: [] };
+      next();
+      waitingJobs--;
+      return;
+    }
+
+    var cwjy = { action: "PutUserFavo", userId: req.body.user, chargePointId: req.body.cp, favo: 'favorite'};
+    var result = await connDBServer.sendAndReceive(cwjy);
+    //console.log('put result: ' + JSON.stringify(result));
+    if(!result)
+      res.response = { responseCode: 'Rejected', result: []};
+    else
+      res.response = { responseCode: 'Accepted', result: [] };
+
+    next();
+    waitingJobs--;
   }
+
   getUserChargingStatus = async (req, res, next) => {
     waitingJobs++;
     var cwjy = { action: "ChargingStatus", userId: req.query.user, evseSerial: req.query.evse};
@@ -351,7 +383,7 @@ function APIController(server) {
     getUserChargingHistory,
     getUserChargingStatus,
     getUserFavo,
-    getUserRecentVisit,
+    putUserFavo,
     getChargePointInfo,
     evseBoot,
     evseRequest,

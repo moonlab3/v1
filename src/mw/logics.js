@@ -1,5 +1,6 @@
 const EARTH_RADIUS = 6371;
-const SQL_RESERVE_DURATION = 1500;
+const SQL_RESERVE_DURATION_MINUTE = 15;
+//const SQL_FAVORITE_CODE_PART = 200;
 
 function DBController (dbms) {
   const dbConnector = require('../tools/dbConnector')(dbms);
@@ -17,21 +18,19 @@ function DBController (dbms) {
 
   }
 
-  //extRequest = (cwjy, callback) => {
   extRequest = async (cwjy, callback) => {
     requestCount++;
     var returnValue, query, result, temp;
     switch (cwjy.action) {
       case 'EVSECheck':
-        query = `SELECT * FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`;
-        break;
+        query = `SELECT * FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`; break;
       case 'ChargingStatus':
         query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' AND finished IS NULL`;
-               //WHERE userId = '${cwjy.userId} ' AND evseSerial = '${cwjy.evseSerial}' AND finished IS NULL`;
         break;
       case 'Reserve':
+        var reserveUntil = (Date.now() + (SQL_RESERVE_DURATION_MINUTE * 60 * 1000)) / 1000;
         query = `UPDATE evse SET status = 'Reserved', occupyingUserId = '${cwjy.userId}', 
-               occupyingEnd = CURRENT_TIMESTAMP + ${SQL_RESERVE_DURATION}
+               occupyingEnd = FROM_UNIXTIME(${reserveUntil})
                WHERE evseSerial = '${cwjy.evseSerial}'`;
         break;
       case 'Angry':
@@ -75,6 +74,11 @@ function DBController (dbms) {
               WHERE evseSerial = '${cwjy.evseSerial}'`;
         break;
       case 'MeterValues':
+        ///////////////////////////////////////////////////////
+        // TODO
+        // process metervalue 
+        query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP 
+                WHERE evseSerial = '${cwjy.evseSerial}'`;
         break;
       case 'StartTransaction':
         cwjy.pdu.transactionId = trxCount++;
@@ -93,8 +97,9 @@ function DBController (dbms) {
                UPDATE bill LEFT JOIN evse ON bill.evseSerial = evse.evseSerial
                SET bill.chargePointId = evse.chargePointId, bill.ownerId = evse.ownerId
                WHERE bill.trxId = '${cwjy.pdu.transactionId}';
-               REPLACE INTO recent (userId, chargePointId)
-               SELECT occupyingUserId, chargePointId FROM evse WHERE evseSerial='${cwjy.evseSerial}'`;
+               INSERT INTO favorite (userId, chargePointId, recent)
+               SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
+               WHERE evseSerial = '${cwjy.evseSerial}';`;
         // 1000: epoch to tiestamp
         break;
       case 'StopTransaction':
@@ -107,7 +112,7 @@ function DBController (dbms) {
         query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}';
               UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), cost = '${costhcl + costhost}',
               costHCL = '${costhcl}', costHost='${costhost}', termination = '${cwjy.pdu.reason}', 
-              meterStop = '${cwjy.pdu.meterStop}', totalkWh = '${totalkWh}'
+              meterNow = '${cwjy.pdu.meterStop}', totalkWh = '${totalkWh}'
               WHERE trxId = '${cwjy.pdu.transactionId}';`;
         break;
       case 'StatusNotification':
@@ -117,6 +122,31 @@ function DBController (dbms) {
         else
           query = `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = NULL, occupyingEnd = NULL
                  WHERE evseSerial = '${cwjy.evseSerial}'`;
+        break;
+      case 'GetUserFavo':
+        if(cwjy.favo == 'favorite')
+          query = `SELECT * FROM favorite WHERE userId = '${cwjy.userId}' AND favoriteOrder IS NOT NULL
+                    ORDER BY favoriteOrder`;
+        else 
+          query = `SELECT * FROM favorite WHERE userId = '${cwjy.userId}' AND recent IS NOT NULL
+                    ORDER BY recent`;
+        break;
+      case 'PutUserFavo':
+        if(cwjy.favo == 'favorite') {
+          query = `SELECT MAX(favoriteOrder) AS max FROM favorite WHERE userId = '${cwjy.userId}'`;
+          result = await dbConnector.submitSync(query);
+          var order = result ? result[0].max + 1 : 1;
+          query = `INSERT INTO favorite (userId, chargePointId, favoriteOrder)
+                   VALUES ('${cwjy.userId}', '${cwjy.chargePointId}', ${order})`;
+        }
+        else if(cwjy.favo == 'recent') {
+          query = `INSERT INTO favorite (userId, chargePointId, recent)
+                   VALUES ('${cwjy.userId}', '${cwjy.chargePointId}', CURRENT_TIMESTAMP)`;
+        }
+        else {
+          query = null;
+          break;
+        }
         break;
       case 'ChangeAvailability':
       case 'ChangeConfiguration':
@@ -130,7 +160,6 @@ function DBController (dbms) {
     result = await dbConnector.submitSync(query);
 
     temp = { messageType: 3, action: cwjy.action, pdu: {} };
-    console.log(`logics query result: ${JSON.stringify(result)}`);
 
     ///////////////////////////////////////////
     // result message making from here
@@ -144,6 +173,8 @@ function DBController (dbms) {
       case 'ChargingStatus':
       case 'Angry':
       case 'EVSECheck':     
+      case 'GetUserFavo':
+      case 'PutUserFavo':
         if(!result)
           returnValue = null;
         else
