@@ -6,215 +6,208 @@ function APIController(server) {
   var waitingJobs = 0;
   var lockArray = [];
 
-  hscanAction = async (req, res, next) => {
+  waitAndGo = (req, res, next) => {
+    var index = lockArray.findIndex(item => item == req.body.evse);
+    if (index >= 0) {
+      res.write('please wait and try again.');
+      res.end();
+      return;
+    }
+    else {
+      next();
+    }
+  }
+
+  hScan = async (req, res, next) => {
     waitingJobs++;
-    var reqToCP = { evseSerial: req.query.evse };
-
-    /////////////////////////////////////////////////
-    // always check EVSE status. Right? No?
-    // further analysis is required
-
-    var cwjy = { action: "EVSECheck", userId: req.query.user, evseSerial: req.query.evse};
+    var reqToCP;
+    var cwjy = { action: "EVSECheck", userId: req.body.user, evseSerial: req.body.evse};
     var result = await connDBServer.sendAndReceive(cwjy);
-    if(!result || !req.query.user) {
+    if(!result || !req.body.user) {
       console.log('result is null');
-      waitingJobs--;
-      res.response = { responseCode: 'Rejected-Wrong Parameters', result: [] };
+      res.response = { responseCode: 'Rejected - Wrong Parameters', result: [] };
       next();
       return;
     }
-    var response = {responseCode: 'Rejected', result: result};
+    var response = {responseCode: 'Not Confirmed Yet', result: result};
 
-    if (req.query.action == 'Scan') {
-      //console.log(`hscanhscanhscan: [${result[0].occupyingUserId}] == [${req.query.user}]`);
-      switch (result[0].status) {
-        case 'Available':
-          req.query.action = 'Charge';
-          console.log('scan >> charge');
-          break;
-        case 'Charging':
-          if (result[0].occupyingUserId == req.query.user) {
-            req.query.action = 'Cancel';
-            console.log('scan >> cancel');
-          }
-          else {
-            req.query.action = 'Alarm';
-            console.log('scan >> Alarm');
-          }
-          break;
-        case 'Finishing':
-          req.query.action = 'Angry';
-          console.log('scan >> Angry');
-          break;
+    if(((result[0].status == 'Reserved' || result[0].status == 'Finishing') && result[0].occupyingUserId == req.body.user)
+      || result[0].status == 'Available') {
+      console.log('scan >> charge');
+      lockActionProcess(req.body.evse);
+
+      reqToCP = { messageType: 2, uuid: '123123', action: 'RemoteStartTransaction', pdu: { idTag: req.body.user } };
+      result = await connCP.sendAndReceive(req.body.evse, reqToCP);
+      console.log('start charge evse result: ' + JSON.stringify(result));
+      if (!result) {
+        console.log('timeout timeout');
+        response.responseCode = 'Rejected-EVSE Problem';
+        //////////////////////////////////////////////
+        unlockActionProcess(req.body.evse);
+        res.response = response;
+        next();
+        return;
+      }
+      if (result.pdu.status == 'Accepted') {
+        cwjy = { action: "StatusNotification", userId: req.body.user, evseSerial: req.body.evse, pdu: { status: 'Preparing' } };
+        console.log('hscanAction: EVSE says OK to charge');
+        result = await connDBServer.sendAndReceive(cwjy);
+        response.responseCode = 'Accepted';
+        response.result[0].status = 'Preparing';
+      }
+      else {
+        console.log('hscanAction: EVSE says Reject ');
+        response.responseCode = 'Rejected-EVSE Problem';
+      }
+
+      cwjy = { action: "NewUserFavo", userId: req.body.user, chargePointId: req.body.cp, favo: 'recent' };
+      connDBServer.sendOnly(cwjy);
+      unlockActionProcess(req.body.evse);
+    }
+    else if (result[0].status == 'Reserved' && result[0].occupyingUserId != req.body.user) {
+      console.log('scan >> other user reserved this. wait for 15 minutes')
+    }
+    else if (result[0].status == 'Finishing' && result[0].occupyingUserId != req.body.user) {
+      console.log('scan >> Angry');
+      cwjy = { action: 'Angry', userId: req.body.user, evseSerial: req.body.evse };
+      result = await connDBServer.sendAndReceive(cwjy);
+      console.log('angry: ' + result);
+      if (result)
+        response.responseCode = 'Accepted';
+      else
+        response.responseCode = 'Done Already';
+    }
+    else if (result[0].status == 'Charging' && result[0].occupyingUserId == req.body.user) {
+      console.log('scan >> cancel');
+      reqToCP = { messageType: 2, action: 'RemoteStopTransaction', pdu: { transactionId: result.trxId } };
+      result = await connCP.sendAndReceive(req.body.evse, reqToCP);
+      if (result) {
+        if (result.pdu.status == 'Accepted') {
+          response.responseCode = 'Accepted';
+          response.result[0].status = 'Finishing';
+        }
+        else {
+          response.responseCode = result.pdu.status;
+        }
+      }
+      else {
+        response.responseCode = 'Unavailable';
+        console.log(`Communication Error. EVSE isn't responnding.`);
       }
     }
+    else if (result[0].status == 'Charging' && result[0].occupyingUserId != req.body.user){
+      console.log('scan >> Alarm');
+      cwjy = { action: 'Alarm', userId: req.body.user, evseSerial: req.body.evse };
+      connDBServer.sendOnly(cwjy);
+      response.responseCode = 'Accepted';
+    }
+    else if (result[0].status == 'Unavailable') {
+      response.responseCode = 'Temporarily Unavailable';
+      console.log('scan >> evse is not availble.')
+    }
+    else if (result[0].status == 'Faulted') {
+      response.responseCode = 'Faulted';
+      console.log('scan >> evse is dead.')
+    }
+    else {
+      console.log('error or special case');
+    }
+    res.response = response;
+    next();
 
-    switch (req.query.action) {
-      case 'Charge':
-        if (result[0].status == 'Available' ||
-          ((result[0].status == 'Preparing' || result[0].status == 'Reserved' || result[0].status == 'Finishing')
-            && result[0].occupyingUserId == req.query.user)) {
-          console.log('hscanaction: its ok to charge');
-        }
-        else {
-          response.responseCode = 'Rejected-EVSE ' + result[0].status;
-          break;
-        }
+  }
 
-        /////////////////////////////////////////////
-        // semaphore location   further analysis is required
-        lockActionProcess(req.query.evse);
+  hAction = async (req, res, next) => {
+    waitingJobs++;
+    var response, cwjy, result, reqToCP;
 
-        reqToCP = { messageType: 2, action: 'RemoteStartTransaction', pdu: { idTag: req.query.user} };
-        result = await connCP.sendAndReceive(req.query.evse, reqToCP);
-        console.log('start charge evse result: ' + JSON.stringify(result));
-        if (!result) {
-          console.log('timeout timeout');
-          response.responseCode = 'Rejected-EVSE Problem';
-          break;
-        }
-        if (result.pdu.status == 'Accepted') {
-          cwjy = { action: "StatusNotification", userId: req.query.user, evseSerial: req.query.evse,
-            pdu: { status: 'Preparing' } };
-          console.log('hscanAction: EVSE says OK to charge');
-          result = await connDBServer.sendAndReceive(cwjy);
-          response.responseCode = 'Accepted';
-          response.result[0].status = 'Preparing';
-        }
-        else {
-          console.log('hscanAction: EVSE says Reject ');
-          response.responseCode = 'Rejected-EVSE Problem';
-        }
-
-        cwjy = { action: "PutUserFavo", userId: req.body.user, chargePointId: req.body.cp, favo: 'recent' };
-        connDBServer.sendOnly(cwjy);
-        /////////////////////////////////////////////
-        // semaphore location   further analysis is required
-        unlockActionProcess(req.query.evse);
-        break;
+    switch (req.body.action) {
       case 'Blink':
-        if (result[0].status == 'Reserved' && result[0].occupyingUserId == req.query.user) {
-          reqToCP = {messageType: 2, action: 'DataTransfer', 
-                    pdu: { vendorId: 'com.hclab', data: 'blink'}};
-          //connCP.sendTo(req.query.evse, null, reqToCP);
-          connCP.sendTo(req.query.evse, reqToCP);
-          response.responseCode = 'Accepted';
-        }
-        else {
-          response.responseCode = 'Rejected';
-        }
+        reqToCP = { messageType: 2, uuid: '123123', action: 'DataTransfer', pdu: { vendorId: 'com.hclab', data: 'blink' } };
+        //connCP.sendTo(req.body.evse, null, reqToCP);
+        connCP.sendTo(req.body.evse, reqToCP);
+        response.responseCode = 'Accepted';
         break;
       case 'Reserve':
-        if(result[0].status == 'Available') {
-          lockActionProcess(req.query.evse);
-          cwjy = { action: 'Reserve', userId: req.query.user, evseSerial: req.query.evse};
-          reqToCP = { messageType: 2, action: 'DataTransfer', 
-                    pdu: { vendorId: 'hclab.temp', data: 'yellow' } };
-          //connCP.sendTo(req.query.evse, null, reqToCP);
-          connCP.sendTo(req.query.evse, reqToCP);
-          //result = await connDBServer.sendAndReceive(cwjy);
-          connDBServer.sendOnly(cwjy);
-          response.responseCode = 'Accepted';
-          unlockActionProcess(req.query.evse);
-        }
-        else {
-          response.responseCode = 'Rejected';
-        }
+        lockActionProcess(req.body.evse);
+        cwjy = { action: 'Reserve', userId: req.body.user, evseSerial: req.body.evse };
+        connDBServer.sendOnly(cwjy);
+
+        reqToCP = { messageType: 2, uuid: '123123', action: 'DataTransfer', pdu: { vendorId: 'hclab.temp', data: 'yellow' } };
+        connCP.sendTo(req.body.evse, reqToCP);
+
+        response.responseCode = 'Accepted';
+        unlockActionProcess(req.body.evse);
         break;
       case 'Cancel':
-        if(result[0].status == 'Charging' && result[0].occupyingUserId == req.query.user) {
-          reqToCP = {messageType: 2, action: 'RemoteStopTransaction', pdu: {transactionId: result.trxId}};
-          result = await connCP.sendAndReceive(req.query.evse, reqToCP);
-          if(result) {
-            if (result.pdu.status == 'Accepted') {
-              cwjy = { action: 'ChargingStatus', userId: req.query.user, evseSerial: req.query.evse };
-              connDBServer.sendOnly(cwjy);
-              response.responseCode = 'Accepted';
-              response.result[0].status = 'Finishing';
-            }
-            else {
-              // EVSE says no
-              response.responseCode = result.pdu.status; 
-            }
+        var trxId;
+        cwjy = { action: 'ChargingStatus', userId: req.body.user };
+        result = connDBServer.sendAndReceive(cwjy);
+        for (var i in result) {
+          if(result[i].evseSerial == req.body.evseSerial)
+            trxId = result[i].trxId;
+        }
+
+        reqToCP = { messageType: 2, uuid: '123123', action: 'RemoteStopTransaction', pdu: { transactionId: trxId } };
+        result = await connCP.sendAndReceive(req.body.evse, reqToCP);
+        if (result) {
+          if (result.pdu.status == 'Accepted') {
+            //cwjy = { action: '', userId: req.body.user, evseSerial: req.body.evse };
+            //connDBServer.sendOnly(cwjy);
+            response.responseCode = 'Accepted';
+            response.result[0].status = 'Finishing';
           }
           else {
-            response.responseCode = 'Unavailable';
-            console.log(`Communication Error. EVSE isn't responnding.`);
+            // EVSE says no
+            response.responseCode = result.pdu.status;
           }
+        }
+        else {
+          response.responseCode = 'Unavailable';
+          console.log(`Communication Error. EVSE isn't responnding.`);
         }
         break;
       case 'Alarm':
-        if(result[0].status == 'Charging') {
-          cwjy = { action: 'Alarm', userId: req.query.user, evseSerial: req.query.evse};
-          //result = await connDBServer.sendAndReceive(cwjy);
-          connDBServer.sendOnly(cwjy);
-          response.responseCode = 'Accepted';
-        }
-        else {
-          response.responseCode = 'Rejected';
-        }
+        cwjy = { action: 'Alarm', userId: req.body.user, evseSerial: req.body.evse };
+        connDBServer.sendOnly(cwjy);
+        response.responseCode = 'Accepted';
         break;
       case 'Angry':
-        if(result[0].status == 'Finishing') {
-          cwjy = { action: 'Angry', userId: req.query.user, evseSerial: req.query.evse};
-          result = await connDBServer.sendAndReceive(cwjy);
-          console.log('angry: ' + result);
-          if(result)
-            response.responseCode = 'Accepted';
-          else
-            response.responseCode = 'Done Already';
-        }
-        else {
-          response.responseCode = 'Rejected';
-        }
-        break;
-      case 'Report':
-        cwjy = { action: 'Report', userId: req.query.user, evseSerial: req.query.evse };
+        cwjy = { action: 'Angry', userId: req.body.user, evseSerial: req.body.evse };
         result = await connDBServer.sendAndReceive(cwjy);
-        response.responseCode = "Accepted";
+        console.log('angry: ' + result);
+        if (result)
+          response.responseCode = 'Accepted';
+        else
+          response.responseCode = 'Done Already';
         break;
     }
 
     res.response = response;
     next();
-
-    waitingJobs--;
   }
 
-  getChargePointInfo= async (req, res, next) => {
+  getUserChargingStatus = async (req, res, next) => {
     waitingJobs++;
-    var cwjy;
-    if (req.query.cp) {
-      cwjy = { action: 'ShowAllEVSE', chargePointId: req.query.cp };
-    }
-    else if(req.query.lat && req.query.lng && req.query.rng) {
-      cwjy = { action: 'ShowAllCP', lat: req.query.lat, lng: req.query.lng, rng: req.query.rng };
-    }
-    else {
-      res.response = { responseCode: 'Rejected', result: [] };
-      next();
-      waitingJobs--;
-      return;
-    }
+    var cwjy = { action: "ChargingStatus", userId: req.params.user};
     var result = await connDBServer.sendAndReceive(cwjy);
-    res.response = {responseCode: 'Accepted', result: result};
+
+    for (var i in result) {
+
+      //console.log(`now: ${new Date(Date.now())} started: ${result[i].started}`);
+      var elapsed = new Date(Date.now() - new Date(result[i].started));
+      result[i].elapsed = elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
+      result[i].currentSoc = result[i].bulkSoc + (result[i].meterNow - result[i].meterStart);
+      result[i].price = (result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart);
+    }
+
+    res.response = { responseCode: 'Accepted', result: result};
     next();
-
-    waitingJobs--;
-  }
-
-  csmsBasic = (req, res, next) => {
-  }
-
-  csmsReport = (req, res, next) => {
-  }
-
-  csmsControl = (req, res, next) => {
   }
 
   getUserChargingHistory = async (req, res, next) => {
     waitingJobs++;
-    var cwjy = { action: "UserHistory", userId: req.query.user};
+    var cwjy = { action: "UserHistory", userId: req.params.user};
     var result = await connDBServer.sendAndReceive(cwjy);
     if(!result)
       res.response = { responseCode: 'Wrong Parameter', result: []};
@@ -222,12 +215,22 @@ function APIController(server) {
       res.response = { responseCode: 'Accepted', result: result };
 
     next();
-    waitingJobs--;
   }
 
+  getUserRecent = async (req, res, next) => {
+    waitingJobs++;
+    var cwjy = { action: "GetUserFavo", userId: req.params.user, favo: 'recent'};
+    var result = await connDBServer.sendAndReceive(cwjy);
+    if(!result)
+      res.response = { responseCode: 'Wrong Parameter', result: []};
+    else
+      res.response = { responseCode: 'Accepted', result: result };
+
+    next();
+  }
   getUserFavo = async (req, res, next) => {
     waitingJobs++;
-    var cwjy = { action: "GetUserFavo", userId: req.query.user, favo: req.query.favo};
+    var cwjy = { action: "GetUserFavo", userId: req.params.user, favo: 'favorite'};
     var result = await connDBServer.sendAndReceive(cwjy);
     if(!result)
       res.response = { responseCode: 'Wrong Parameter', result: []};
@@ -235,19 +238,17 @@ function APIController(server) {
       res.response = { responseCode: 'Accepted', result: result };
 
     next();
-    waitingJobs--;
   }
 
-  putUserFavo = async (req, res, next) => {
+  newUserFavo = async (req, res, next) => {
     waitingJobs++;
-    if (!req._body) {
+    if (!req.body) {
       res.response = { responseCode: 'Rejected', result: [] };
       next();
-      waitingJobs--;
       return;
     }
 
-    var cwjy = { action: "PutUserFavo", userId: req.body.user, chargePointId: req.body.cp, favo: 'favorite'};
+    var cwjy = { action: "NewUserFavo", userId: req.body.user, chargePointId: req.body.cp, favo: 'favorite'};
     var result = await connDBServer.sendAndReceive(cwjy);
     //console.log('put result: ' + JSON.stringify(result));
     if(!result)
@@ -256,20 +257,41 @@ function APIController(server) {
       res.response = { responseCode: 'Accepted', result: [] };
 
     next();
-    waitingJobs--;
   }
 
-  getUserChargingStatus = async (req, res, next) => {
+  delUserFavo = async (req, res, next) => {
+
+  }
+  getChargePointInfo= async (req, res, next) => {
     waitingJobs++;
-    var cwjy = { action: "ChargingStatus", userId: req.query.user, evseSerial: req.query.evse};
+    var cwjy;
+    if (req.params.cpId) {
+      cwjy = { action: 'ShowAllEVSE', chargePointId: req.parmas.cp};
+    }
+    else if(req.query.lat && req.query.lng && req.query.rng) {
+      cwjy = { action: 'ShowAllCP', lat: req.query.lat, lng: req.query.lng, rng: req.query.rng };
+    }
+    else {
+      res.response = { responseCode: 'Rejected', result: [] };
+      next();
+      return;
+    }
     var result = await connDBServer.sendAndReceive(cwjy);
+    res.response = {responseCode: 'Accepted', result: result};
+    next();
 
-    waitingJobs--;
+  }
 
-    res.response = { responseCode: 'Accepted', result: result};
+  postDamageReport = (req, res, next) => {
+    //////////////////////////////////////////////
+    // images, writings
+    cwjy = { action: 'Report', evseSerial: req.params.evse };
+    result = connDBServer.sendOnly(cwjy);
+    response.responseCode = "Accepted";
+
+    res.response = response;
     next();
   }
-
 
   evseBoot = async (req, origin) => {
     req.evseSerial = origin;
@@ -290,7 +312,7 @@ function APIController(server) {
       case 'MeterValues':
       case 'StatusNotification':
         connDBServer.sendOnly(req);
-        conf = { messageType: 3, action: req.action, pdu: {} };
+        conf = { messageType: 3, uuid: '234wer', action: req.action, pdu: req.pdu };
         break;
       case 'Authorize':
       case 'StartTransaction':
@@ -307,6 +329,33 @@ function APIController(server) {
         return;
     }
     connCP.sendTo(origin, conf);
+  }
+
+  csmsBasic = (req, res, next) => {
+    console.log('/host');
+  }
+
+  csmsReport = (req, res, next) => {
+    console.log('/host/report');
+  }
+
+  csmsControl = (req, res, next) => {
+    console.log('/host/:userId' + req.params.userId);
+  }
+
+
+  
+
+  writeResponse = (req, res) => {
+    waitingJobs--;
+    if (req.query.html || req.body.html) {
+      var html = json2html.render(res.response);
+      res.write(html);
+    }
+    else
+      res.json(res.response);
+
+    res.end();
   }
 
   lockActionProcess = (evseSerial) => {
@@ -329,30 +378,6 @@ function APIController(server) {
     else {
       console.log(`apiController: Can't find [${evseSerial}].`);
     }
-  }
-  
-  waitAndGo = (req, res, next) => {
-    //console.log('waitandgo called. client want ' + r)
-    var index = lockArray.findIndex(item => item == req.params.evseSerial);
-    if (index >= 0) {
-      res.write('please wait and try again.');
-      res.end();
-      return;
-    }
-    else {
-      next();
-    }
-  }
-
-  writeResponse = (req, res) => {
-    if (req.query.html) {
-      var html = json2html.render(res.response);
-      res.write(html);
-    }
-    else
-      res.json(res.response);
-
-    res.end();
   }
 
   consoleCommand = () => {
@@ -378,18 +403,22 @@ function APIController(server) {
 
   const apiController = {
     waitAndGo,
-    writeResponse,
-    hscanAction,
-    getUserChargingHistory,
+    hScan,
+    hAction,
     getUserChargingStatus,
+    getUserChargingHistory,
+    getUserRecent,
     getUserFavo,
-    putUserFavo,
+    newUserFavo,
+    delUserFavo,
     getChargePointInfo,
+    postDamageReport,
     evseBoot,
     evseRequest,
     csmsBasic,
     csmsReport,
-    csmsControl
+    csmsControl,
+    writeResponse
   }
 
   connCP.enlistForwarding('general', evseRequest);

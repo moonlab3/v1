@@ -9,18 +9,20 @@ function WebSocketWrapper(server) {
 
   wss = new WebSocketServer({
     httpServer: server,
+    path: '/:evse',
     autoAcceptConnections: false
   });
 
   wss.on('request', function (request) {
-    var connection = request.accept('hclab-protocol', request.origin);
+    var connection = request.accept('hclab-protocol');
+    var origin = String(request.resource).slice(1, request.resource.length);
+    //console.log('resource: ' + origin);
 
     connection.on('message', (message) => {
-
       try {
         var incoming = JSON.parse(message.utf8Data);
-        var parsed = { messageType: incoming[0], action: incoming[1], pdu: incoming[2] };
-        if (parsed.messageType < 2 || parsed.messageType > 4) {
+        var parsed = { messageType: incoming[0], uuid: incoming[1], action: incoming[2], pdu: incoming[3] };
+        if (parsed.messageType != 2) {
           console.log('websocket server: message is not valid. (messageType: 2, 3 or 4)');
           return;
         }
@@ -31,15 +33,15 @@ function WebSocketWrapper(server) {
       switch (parsed.messageType) {
         case 2:
           if(parsed.action == 'BootNotification') {
-            storeConnection(request.origin, connection, true);
-            forwardTo('boot', parsed, request.origin);
+            storeConnection(origin, connection, true);
+            forwardTo('boot', parsed, origin);
           }
           else {
-            forwardTo('general', parsed, request.origin);
+            forwardTo('general', parsed, origin);
           }
           break;
         case 3:
-          forwardTo(request.origin, parsed, null);
+          forwardTo(origin, parsed, null);
           break;
         case 4:
           break;
@@ -90,7 +92,7 @@ function WebSocketWrapper(server) {
 
   sendTo = function (origin, data) {
     //console.log(`websocketWrapper:sendTo: ${JSON.stringify(data)}`);
-    var sending = [data.messageType, data.action, data.pdu];
+    var sending = [data.messageType, data.uuid, data.action, data.pdu];
     console.log('sending: ' + JSON.stringify(sending));
 
     var found = socketArray.find(i => i.origin == origin);
