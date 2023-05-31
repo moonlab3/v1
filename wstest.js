@@ -1,4 +1,5 @@
 var wsClient = require('websocket').client;
+const { v1: uuidv1, } = require('uuid');
 
 var client = new wsClient();
 
@@ -52,71 +53,74 @@ init();
 
 client.on('connect', (connection) => {
   var repeatCount = 0, repeats = 0;
-  var command, last;
+  var command, last, lastid, sending;
 
-  connection.send(`[2, "123123", "BootNotification",
-                  {"chargePointModel":"hcLab1", "chargePointVendor": "hclab"}]`);
+  sending = `[2, "${uuidv1()}", "BootNotification", {"chargePointModel":"hcLab1", "chargePointVendor": "hclab"}]`;
+  connection.send(sending);
+  console.log('sending: ' + sending);
         /////////////////////////////////////////////// check cpID and evseSerial
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
     command = String(input).slice(0, input.length - eol).split(" ");
+    sending = '';
     switch (command[0]) {
       case 'list':
         console.log('auth heart start stop avail reserve meter show res accept reject repeat');
         break;
       case 'auth':
         if(command[1])
-          connection.send(`[2, "234uio234uio", "Authorize", {"idTag":"${command[1]}"}]`);
+          sending = `[2, "${uuidv1()}", "Authorize", {"idTag":"${command[1]}"}]`;
         else
           console.log('usage: auth {userid}');
         break;
       case 'heart':
-        connection.send(`[2, "234uio234uio", "Heartbeat", {}]`);
+        sending = `[2, "${uuidv1()}", "Heartbeat", {}]`;
         break;
       case 'start':
         if(command[1] && command[2] && command[3])
-          connection.send(`[2, "234uio234uio", "StartTransaction", {"connectorId": 1, 
-                          "idTag":"${command[1]}", "meterStart": ${command[3]}, "timeStamp": ${Date.now()}, "bulkSoc": "${command[2]}", "fullSoc": 72.7 }]`);
+          sending = `[2, "${uuidv1()}", "StartTransaction", {"connectorId": 1, 
+                          "idTag":"${command[1]}", "meterStart": ${command[3]}, "timeStamp": ${Date.now()}, "bulkSoc": "${command[2]}", "fullSoc": 72.7 }]`;
         else
           console.log('usage: start {userid} {bulkSoc} {meterStart}');
         break;
       case 'stop':
         if(command[1] && command[2] && command[3])
-          connection.send(`[2, "234uio234uio", "StopTransaction", {"transactionId": "${command[1]}", 
-                          "meterStop":${command[2]}, "timeStamp": ${Date.now()}, "reason": "${command[3]}"}]`);
+          sending = `[2, "${uuidv1()}", "StopTransaction", {"transactionId": "${command[1]}", 
+                          "meterStop":${command[2]}, "timeStamp": ${Date.now()}, "reason": "${command[3]}"}]`;
         else
           console.log('usage: stop {transactionId} {meterStop} {reason}');
         break;
       case 'status':
         if(command[1])
-          connection.send(`[2, "234uio234uio", "StatusNotification", {"connectorId": 1,
-                            "errorCode":"error001", "status":"${command[1]}", "timeStamp": ${Date.now()}}]`);
+          sending = `[2, "${uuidv1()}", "StatusNotification", {"connectorId": 1,
+                            "errorCode":"error001", "status":"${command[1]}", "timeStamp": ${Date.now()}}]`;
         else
           console.log('usage: status {Available Preparing Charging Finishing Reserved Unavailable}');
         break;
       case 'meter':
         if(command[1])
-          connection.send(`[2, "234uio234uio", "MeterValues",  { "connectorId": 1, 
-                        "meterValue": {"timeStamp": "${Date.now()}", "transactionId": "${command[1]}", "sampledValue": {"value":${command[2]}}}}]`);
+          sending = `[2, "${uuidv1()}", "MeterValues",  { "connectorId": 1, 
+                        "meterValue": {"timeStamp": "${Date.now()}", "transactionId": "${command[1]}", "sampledValue": {"value":${command[2]}}}}]`;
         else
           console.log('usage: meter {trxId} {meterValue}');
         break;
       case 'show':
-        connection.send(`[2, "234uio234uio", "ShowArray", {}]`);
+        sending = `[2, "${uuidv1()}", "ShowArray", {}]`;
         break;
       case 'serial':
-        connection.send(`[2, "234uio234uio", "WhatsMySerial", {}]`);
+        sending = `[2, "${uuidv1()}", "WhatsMySerial", {}]`;
         break;
       case 'response':
         if(command[1])
-          connection.send(`[3, "234uio234uio", "${last}", {"status": "${command[1]}"}]`);
+          sending = `[3, "${lastid}", "${last}", {"status": "Rejected"}]`;
         else
-          console.log('usage: response {accepted or rejected}');
+          sending = `[3, "${lastid}", "${last}", {"status": "Accepted"}]`;
         break;
       case 'repeat':
         repeatCount = 0;
         repeats = Number(command[1]);
+        sending = '';
         if(repeats > 0) {
           repeat();
         }
@@ -124,8 +128,13 @@ client.on('connect', (connection) => {
           console.log('usage: repeat {repeat count}');
         break;
       case 'quit':
-        connection.send(`[2, "234uio234uio", "Quit", {}]`);
+        sending = `[2, "${uuidv1()}", "Quit", {}]`;
         process.exit();
+    }
+
+    if (sending) {
+      console.log('sending: ' + sending);
+      connection.send(sending);
     }
 
     function repeat() {
@@ -140,7 +149,8 @@ client.on('connect', (connection) => {
 
   connection.on('message', (message) => {
     console.log('rcved: ' + JSON.stringify(message.utf8Data));
-    last = JSON.parse(message.utf8Data)[1];
+    last = JSON.parse(message.utf8Data)[2];
+    lastid = JSON.parse(message.utf8Data)[1];
   });
 
 

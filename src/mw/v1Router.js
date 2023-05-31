@@ -14,9 +14,10 @@ var V1RouterWrapper = function (server) {
   router.post('/hscan/report/:evse', controller.postDamageReport, controller.writeResponse);
 
 
+  router.get('/user/status/:user', controller.getUserStatus, controller.writeResponse); // parameters: userid
   router.get('/user/chargingstatus/:user', controller.getUserChargingStatus, controller.writeResponse); // parameters: userid
   router.get('/user/history/:user', controller.getUserChargingHistory, controller.writeResponse);       // parameters: userid, from-date, to-date
-  router.get('/chargepoint', controller.getChargePointInfo, controller.writeResponse);            // parameters: chargepointid or set of (lat, lng, rng)
+  router.get('/chargepointlist', controller.getChargePointList, controller.writeResponse);            // parameters: chargepointid or set of (lat, lng, rng)
   router.get('/chargepoint/:cp', controller.getChargePointInfo, controller.writeResponse);            // parameters: chargepointid or set of (lat, lng, rng)
 
   router.get('/user/favorite/:user', controller.getUserFavo, controller.writeResponse);                 // parameters: userid

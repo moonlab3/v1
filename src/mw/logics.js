@@ -23,7 +23,18 @@ function DBController (dbms) {
     var returnValue, query, result, temp;
     switch (cwjy.action) {
       case 'EVSECheck':
-        query = `SELECT * FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`; break;
+        query = `SELECT * FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`;
+        break;
+      case 'UserStatus':
+        query = `SELECT * FROM evsecheck WHERE occupyingUserId = '${cwjy.userId}'`;
+        result = await dbConnector.submitSync(query);
+        if ( result[0].status == 'Reserved' ) {
+
+        }
+        else if ( result[0].status == 'Charging' || result[0].status == 'Finishing' ) {
+          query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' AND finished IS NULL`;
+        }
+        break;
       case 'ChargingStatus':
         query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' AND finished IS NULL`;
         break;
@@ -56,12 +67,16 @@ function DBController (dbms) {
       case 'ShowAllEVSE':
         query = `SELECT * FROM evsebycp WHERE chargePointId = '${cwjy.chargePointId}'`;
         break;
-      case 'ShowAllCP':
+      case 'ShowAllCPbyLoc':
         var box = getBox(cwjy.lat, cwjy.lng, cwjy.rng);
         query = `SELECT * FROM cpbasic 
                   WHERE lat < '${box.top}' AND lat > '${box.bottom}'
                   AND lng < '${box.right}' AND lng > '${box.left}'`;
-        console.log(query);
+        //console.log(query);
+        break;
+      case 'ShowAllCPbyName':
+        query = `SELECT * FROM cpbasic
+                  WHERE chargePointName LIKE '%${cwjy.name}%'`;
         break;
       case 'UserHistory':
         query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}'`;
@@ -115,8 +130,8 @@ function DBController (dbms) {
                   ON bill.chargePointId = chargepoint.chargePointId WHERE trxId = '${cwjy.pdu.transactionId}'`;
         result = await dbConnector.submitSync(query);
         var totalkWh = Number(cwjy.pdu.meterStop) - Number(result[0].meterStart);
-        var costhcl = totalkWh * Number(result[0].pricehcl);
-        var costhost = totalkWh * Number(result[0].pricehost);
+        var costhcl = totalkWh * Number(result[0].priceHCL);
+        var costhost = totalkWh * Number(result[0].priceHost);
         query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}';
                  UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), cost = '${costhcl + costhost}',
                   costHCL = '${costhcl}', costHost='${costhost}', termination = '${cwjy.pdu.reason}', 
@@ -148,8 +163,15 @@ function DBController (dbms) {
                     VALUES ('${cwjy.userId}', '${cwjy.chargePointId}', ${order})`;
         }
         else if(cwjy.favo == 'recent') {
-          query = `INSERT INTO favorite (userId, chargePointId, recent)
-                    VALUES ('${cwjy.userId}', '${cwjy.chargePointId}', CURRENT_TIMESTAMP)`;
+          query = `SELECT chargePointId AS cpid FROM evse WHERE occupyingUserId = '${cwjy.userId}'`;
+          result = await dbConnector.submitSync(query);
+          if(result) {
+            query = `INSERT INTO favorite (userId, chargePointId, recent)
+                      VALUES ('${cwjy.userId}', '${result[0].cpid}', CURRENT_TIMESTAMP)`;
+          }
+          else {
+            console.log('add recently visited place error');
+          }
         }
         else {
           query = null;
@@ -167,14 +189,15 @@ function DBController (dbms) {
     }
     result = await dbConnector.submitSync(query);
 
-    temp = { messageType: 3, uuid: '12123', action: cwjy.action, pdu: {} };
+    //temp = { messageType: 3, uuid: '12123', action: cwjy.action, pdu: {} };
 
     ///////////////////////////////////////////
     // result message making from here
     switch (cwjy.action) {
       case 'UserHistory':
       case 'ShowAllEVSE':
-      case 'ShowAllCP':
+      case 'ShowAllCPbyLoc':
+      case 'ShowAllCPbyName':
       case 'Alarm':
       case 'Report':
       case 'Reserve':
@@ -190,17 +213,17 @@ function DBController (dbms) {
         break;
       case 'Authorize':     
         if(!result)
-          temp.pdu = { idTagInfo: { status: 'Invalid' } };
+          temp = { idTagInfo: { status: 'Invalid' } };
         else
-          temp.pdu = { idTagInfo: { status: result[0].authStatus } };
+          temp = { idTagInfo: { status: result[0].authStatus } };
         returnValue = temp;
         break;
       case 'Heartbeat':
-        temp.pdu = { currentTime: Date.now()};
+        temp= { currentTime: Date.now()};
         returnValue = temp;
         break;
       case 'StartTransaction': 
-        temp.pdu = {transactionId: cwjy.pdu.transactionId, idTagInfo: { status: 'Accepted'}};
+        temp= {transactionId: cwjy.pdu.transactionId, idTagInfo: { status: 'Accepted'}};
       case 'StopTransaction':  
       case 'StatusNotification':
       case 'MeterValues':
@@ -208,11 +231,12 @@ function DBController (dbms) {
         break;
       case 'BootNotification':
         if(!result)
-          temp.pdu = { currentTime: Date.now(), interval: 0, status: 'Rejected' };
+          temp = { currentTime: Date.now(), interval: 0, status: 'Rejected' };
         else {
-          temp.pdu = { currentTime: Date.now(), interval: result[0].heartbeat , status: 'Accepted' };
-          query = `UPDATE evse SET booted = FROM_UNIXTIME(${Date.now()} / 1000), status = 'Available',
-                    occupyinguserid = NULL, occupyingEnd = NULL
+          temp = { currentTime: Date.now(), interval: result[0].heartbeat , status: 'Accepted' };
+          var now = Date.now() / 1000;
+          query = `UPDATE evse SET booted = FROM_UNIXTIME(${now}), lastHeartbeat = FROM_UNIXTIME(${now}),
+                    status = 'Available', occupyinguserid = NULL, occupyingEnd = NULL
                     WHERE evseSerial = '${cwjy.evseSerial}'`;
           dbConnector.submit(query);
         }

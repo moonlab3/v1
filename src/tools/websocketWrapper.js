@@ -9,20 +9,22 @@ function WebSocketWrapper(server) {
 
   wss = new WebSocketServer({
     httpServer: server,
-    path: '/:evse',
+    //path: '/:evse',
     autoAcceptConnections: false
   });
 
   wss.on('request', function (request) {
     var connection = request.accept('hclab-protocol');
-    var origin = String(request.resource).slice(1, request.resource.length);
-    //console.log('resource: ' + origin);
+    //console.log('resourceURL: ' + JSON.stringify(request.resourceURL));
+    var origin = String(request.resourceURL.pathname).slice(1, request.resourceURL.pathname.length);
+    console.log('connected from ' + origin);
 
     connection.on('message', (message) => {
+      console.log('incoming: ' + message.utf8Data);
       try {
         var incoming = JSON.parse(message.utf8Data);
         var parsed = { messageType: incoming[0], uuid: incoming[1], action: incoming[2], pdu: incoming[3] };
-        if (parsed.messageType != 2) {
+        if (parsed.messageType < 2 || parsed.messageType > 4) {
           console.log('websocket server: message is not valid. (messageType: 2, 3 or 4)');
           return;
         }
@@ -41,6 +43,7 @@ function WebSocketWrapper(server) {
           }
           break;
         case 3:
+          console.log('DBG return from evse: ' + JSON.stringify(parsed));
           forwardTo(origin, parsed, null);
           break;
         case 4:
@@ -109,13 +112,16 @@ function WebSocketWrapper(server) {
   sendAndReceive = function (origin, data) {
     sendTo(origin, data);
     return new Promise((resolve, reject) => {
-      setTimeout(() => {
+      var timeout = setTimeout(() => {
         console.log('timeout. 10 seconds');
+        delistForwarding(origin);
         resolve(null);
         return;
       }, CONNECTION_TIMEOUT);
       enlistForwarding(origin, (result) => {
+        clearTimeout(timeout);
         delistForwarding(origin);
+        console.log('sendandreceive promise: ' + JSON.stringify(result));
         resolve(result);
       });
     });
