@@ -12,6 +12,7 @@ const dbServer = config.get('dbserver');
 const dbms = config.get('dbms');
 
 const controller = require('../mw/logics')(dbms);
+//const csmsController = require('../mw/csmsLogics')(dbms);
 //const mailer = require('./tools/mail');
 
 
@@ -32,6 +33,15 @@ io.of('nnmServer').on('connection', (socket) => {
   socket.onAny(controller.preProcess);
   socket.on('cwjy', controller.nnmRequest);
 });
+
+/*
+io.of('csmsServer').on('connection', (socket) => {
+  console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
+
+  socket.onAny(csmsController.preProcess);
+  socket.on('cwjy', csmsController.request);
+});
+*/
 
 server.listen(dbServer.port, ()=> {
   // DB server initiation. setTxCount is for transaction ID(number)

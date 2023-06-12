@@ -135,7 +135,7 @@ function WebSocketWrapper(server) {
   forwardTo = function (origin, param1, param2) {
     var found = forwardingArray.find( i => i.origin == origin);
     if (!found) {
-      console.log('wss:forwardTo: forwardTo weve got problem.');
+      console.log('wss:response without request');
       return;
     }
     if (param2) {

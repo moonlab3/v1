@@ -72,7 +72,7 @@ function APIController(server) {
     }
     else if (result[0].status == 'Reserved' && result[0].occupyingUserId != req.body.user) {
       console.log('scan >> other user reserved this. wait for 15 minutes')
-      response.responseCode = { type: 'popup', name: 'reserved by other' };
+      response.responseCode = { type: 'toast', name: 'reserved by other' };
     }
     else if (result[0].status == 'Finishing' && result[0].occupyingUserId != req.body.user) {
       console.log('scan >> Angry');
@@ -147,14 +147,14 @@ function APIController(server) {
         reqToCP = { messageType: 2, uuid: uuidv1(), action: 'DataTransfer', pdu: { vendorId: 'hclab.temp', data: 'yellow' } };
         connCP.sendTo(req.body.evse, reqToCP);
 
-        response.responseCode = { type: 'popup', name: 'reserve ok' };
+        response.responseCode = { type: 'toast', name: 'reserve ok' };
         unlockActionProcess(req.body.evse);
         break;
       case 'Blink':
         reqToCP = { messageType: 2, uuid: uuidv1(), action: 'DataTransfer', pdu: { vendorId: 'com.hclab', data: 'blink' } };
         //connCP.sendTo(req.body.evse, null, reqToCP);
         connCP.sendTo(req.body.evse, reqToCP);
-        response.responseCode = { type: 'popup', name: 'blink ok' };
+        response.responseCode = { type: 'toast', name: 'blink ok' };
         break;
       case 'Cancel':
         var trxId;
@@ -187,16 +187,16 @@ function APIController(server) {
       case 'Alarm':
         cwjy = { action: 'Alarm', userId: req.body.user, evseSerial: req.body.evse };
         connDBServer.sendOnly(cwjy);
-        response.responseCode = { type: 'popup', name: 'alarm ok' };
+        response.responseCode = { type: 'toast', name: 'alarm ok' };
         break;
       case 'Angry':
         cwjy = { action: 'Angry', userId: req.body.user, evseSerial: req.body.evse };
         result = await connDBServer.sendAndReceive(cwjy);
         console.log('angry: ' + result);
         if (result)
-          response.responseCode = { type: 'popup', name: 'angry ok' };
+          response.responseCode = { type: 'toast', name: 'angry ok' };
         else
-          response.responseCode = { type: 'popup', name: 'angry done already' };
+          response.responseCode = { type: 'toast', name: 'angry done already' };
         break;
     }
 
@@ -208,7 +208,7 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "UserStatus", userId: req.params.user };
     var result = await connDBServer.sendAndReceive(cwjy);
-    res.response = { responseCode: { type: 'popup', name: 'user status' }, result: result};
+    res.response = { responseCode: { type: 'page', name: 'user status' }, result: result};
     next();
 
   }
