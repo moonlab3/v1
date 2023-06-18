@@ -22,8 +22,12 @@ function DBController (dbms) {
     requestCount++;
     var returnValue, query, result, temp;
     switch (cwjy.action) {
+      case 'GetSerial':
+        query = `SELECT evseSerial FROM evsecheck WHERE evseNickname = '${cwjy.evseNickname}'`;
+        break;
       case 'EVSECheck':
-        query = `SELECT * FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`;
+        //query = `SELECT * FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`;
+        query = `SELECT * FROM evsecheck WHERE evseNickname = '${cwjy.evseNickname}'`;
         break;
       case 'UserStatus':
         query = `SELECT * FROM evsecheck WHERE occupyingUserId = '${cwjy.userId}'`;
@@ -194,6 +198,7 @@ function DBController (dbms) {
     ///////////////////////////////////////////
     // result message making from here
     switch (cwjy.action) {
+      case 'GetSerial':
       case 'UserHistory':
       case 'ShowAllEVSE':
       case 'ShowAllCPbyLoc':

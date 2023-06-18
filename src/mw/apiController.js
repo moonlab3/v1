@@ -10,7 +10,7 @@ function APIController(server) {
   waitAndGo = (req, res, next) => {
     var index = lockArray.findIndex(item => item == req.body.evse);
     if (index >= 0) {
-      res.write('please wait and try again.');
+      res.json({ responseCode: { type: 'error', name: 'wait a while and try again'}, result: [] });
       res.end();
       return;
     }
@@ -21,31 +21,36 @@ function APIController(server) {
 
   hScan = async (req, res, next) => {
     waitingJobs++;
-    var reqToCP;
-    var cwjy = { action: "EVSECheck", userId: req.body.user, evseSerial: req.body.evse};
-    var result = await connDBServer.sendAndReceive(cwjy);
-    if(!result || !req.body.user) {
+    var reqToCP, resultCP;
+    //const evseSerial = await connDBServer.sendAndReceive({ action: "GetSerial", evseNickname: req.body.evse });
+    var cwjy = { action: "EVSECheck", userId: req.body.user, evseNickname: req.body.evse};
+    console.log(JSON.stringify(cwjy));
+    console.log(req.body);
+    var resultDB = await connDBServer.sendAndReceive(cwjy);
+    if(!resultDB || !req.body.user) {
       console.log('result is null');
       res.response = { responseCode: { type: 'error', name: 'wrong parameters'}, result: [] };
       next();
       return;
     }
-    var response = { responseCode: { type: 'temp', name: 'temp'}, result: result };
+    var response = { responseCode: { type: 'temp', name: 'temp'}, result: resultDB };
+    const evseSerial = resultDB[0].evseSerial;
     /*
     res.response = response;
     next();
     return;
     */
 
-    if(((result[0].status == 'Reserved' || result[0].status == 'Finishing') && result[0].occupyingUserId == req.body.user)
-      || result[0].status == 'Available') {
+    if(((resultDB[0].status == 'Reserved' || resultDB[0].status == 'Finishing') && resultDB[0].occupyingUserId == req.body.user)
+      || resultDB[0].status == 'Available') {
       console.log('scan >> charge');
       lockActionProcess(req.body.evse);
 
       reqToCP = { messageType: 2, uuid: uuidv1(), action: 'RemoteStartTransaction', pdu: { idTag: req.body.user } };
-      result = await connCP.sendAndReceive(req.body.evse, reqToCP);
-      console.log('after resolve start charge evse result: ' + JSON.stringify(result));
-      if (!result) {
+      //result = await connCP.sendAndReceive(req.body.evse, reqToCP);
+      resultCP = await connCP.sendAndReceive(evseSerial, reqToCP);
+      console.log('after resolve start charge evse result: ' + JSON.stringify(resultCP));
+      if (!resultCP) {
         console.log('timeout timeout');
         response.responseCode = { type: 'error', name: 'temporarily unavailable' };
         //////////////////////////////////////////////
@@ -54,10 +59,11 @@ function APIController(server) {
         next();
         return;
       }
-      if (result.pdu.status == 'Accepted') {
-        cwjy = { action: "StatusNotification", userId: req.body.user, evseSerial: req.body.evse, pdu: { status: 'Preparing' } };
+      if (resultCP.pdu.status == 'Accepted') {
+        //cwjy = { action: "StatusNotification", userId: req.body.user, evseSerial: req.body.evse, pdu: { status: 'Preparing' } };
+        cwjy = { action: "StatusNotification", userId: req.body.user, evseSerial: evseSerial, pdu: { status: 'Preparing' } };
         console.log('hscanAction: EVSE says OK to charge');
-        result = await connDBServer.sendAndReceive(cwjy);
+        resultDB = await connDBServer.sendAndReceive(cwjy);
         response.responseCode = { type: 'page', name: 'charging status' };
         response.result[0].status = 'Preparing';
       }
@@ -70,11 +76,11 @@ function APIController(server) {
       connDBServer.sendOnly(cwjy);
       unlockActionProcess(req.body.evse);
     }
-    else if (result[0].status == 'Reserved' && result[0].occupyingUserId != req.body.user) {
+    else if (resultDB[0].status == 'Reserved' && resultDB[0].occupyingUserId != req.body.user) {
       console.log('scan >> other user reserved this. wait for 15 minutes')
       response.responseCode = { type: 'toast', name: 'reserved by other' };
     }
-    else if (result[0].status == 'Finishing' && result[0].occupyingUserId != req.body.user) {
+    else if (resultDB[0].status == 'Finishing' && resultDB[0].occupyingUserId != req.body.user) {
       console.log('scan >> Angry');
       response.responseCode = { type: 'popup', name: 'ask angry' };
       /*
@@ -87,7 +93,7 @@ function APIController(server) {
         response.responseCode = 'Done Already';
         */
     }
-    else if (result[0].status == 'Charging' && result[0].occupyingUserId == req.body.user) {
+    else if (resultDB[0].status == 'Charging' && resultDB[0].occupyingUserId == req.body.user) {
       console.log('scan >> cancel');
       response.responseCode = { type: 'popup', name: 'ask cancel' };
       /*
@@ -108,7 +114,7 @@ function APIController(server) {
       }
       */
     }
-    else if (result[0].status == 'Charging' && result[0].occupyingUserId != req.body.user){
+    else if (resultDB[0].status == 'Charging' && resultDB[0].occupyingUserId != req.body.user){
       console.log('scan >> Alarm');
       response.responseCode = { type: 'popup', name: 'ask alarm' };
       /*
@@ -117,11 +123,11 @@ function APIController(server) {
       response.responseCode = 'Accepted';
       */
     }
-    else if (result[0].status == 'Unavailable') {
+    else if (resultDB[0].status == 'Unavailable') {
       response.responseCode = { type: 'error', name: 'temporarily unavailable' };
       console.log('scan >> evse is not availble.')
     }
-    else if (result[0].status == 'Faulted') {
+    else if (resultDB[0].status == 'Faulted') {
       response.responseCode = { type: 'error', name: 'evse problem' };
       console.log('scan >> evse is dead.')
     }
@@ -137,23 +143,26 @@ function APIController(server) {
     waitingJobs++;
     var cwjy, result, reqToCP;
     var response = { responseCode: { type: 'temp', name: 'temp'}, result: [] };
+    const evseSerial = await connDBServer.sendAndReceive({ action: 'GetSerial', evseNickname: req.body.evse });
 
     switch (req.body.action) {
       case 'Reserve':
         lockActionProcess(req.body.evse);
-        cwjy = { action: 'Reserve', userId: req.body.user, evseSerial: req.body.evse };
+        //cwjy = { action: 'Reserve', userId: req.body.user, evseSerial: req.body.evse };
+        cwjy = { action: 'Reserve', userId: req.body.user, evseSerial: evseSerial };
         connDBServer.sendOnly(cwjy);
 
         reqToCP = { messageType: 2, uuid: uuidv1(), action: 'DataTransfer', pdu: { vendorId: 'hclab.temp', data: 'yellow' } };
-        connCP.sendTo(req.body.evse, reqToCP);
+        //connCP.sendTo(req.body.evse, reqToCP);
+        connCP.sendTo(evseSerial, reqToCP);
 
         response.responseCode = { type: 'toast', name: 'reserve ok' };
         unlockActionProcess(req.body.evse);
         break;
       case 'Blink':
         reqToCP = { messageType: 2, uuid: uuidv1(), action: 'DataTransfer', pdu: { vendorId: 'com.hclab', data: 'blink' } };
-        //connCP.sendTo(req.body.evse, null, reqToCP);
-        connCP.sendTo(req.body.evse, reqToCP);
+        //connCP.sendTo(req.body.evse, reqToCP);
+        connCP.sendTo(evseSerial, reqToCP);
         response.responseCode = { type: 'toast', name: 'blink ok' };
         break;
       case 'Cancel':
@@ -161,12 +170,14 @@ function APIController(server) {
         cwjy = { action: 'ChargingStatus', userId: req.body.user };
         result = connDBServer.sendAndReceive(cwjy);
         for (var i in result) {
-          if(result[i].evseSerial == req.body.evseSerial)
+          //if(result[i].evseSerial == req.body.evseSerial)
+          if(result[i].evseSerial == evseSerial)
             trxId = result[i].trxId;
         }
 
         reqToCP = { messageType: 2, uuid: uuidv1(), action: 'RemoteStopTransaction', pdu: { transactionId: trxId } };
-        result = await connCP.sendAndReceive(req.body.evse, reqToCP);
+        //result = await connCP.sendAndReceive(req.body.evse, reqToCP);
+        result = await connCP.sendAndReceive(evseSerial, reqToCP);
         if (result) {
           if (result.pdu.status == 'Accepted') {
             //cwjy = { action: '', userId: req.body.user, evseSerial: req.body.evse };
@@ -185,12 +196,14 @@ function APIController(server) {
         }
         break;
       case 'Alarm':
-        cwjy = { action: 'Alarm', userId: req.body.user, evseSerial: req.body.evse };
+        //cwjy = { action: 'Alarm', userId: req.body.user, evseSerial: req.body.evse };
+        cwjy = { action: 'Alarm', userId: req.body.user, evseSerial: evseSerial };
         connDBServer.sendOnly(cwjy);
         response.responseCode = { type: 'toast', name: 'alarm ok' };
         break;
       case 'Angry':
-        cwjy = { action: 'Angry', userId: req.body.user, evseSerial: req.body.evse };
+        //cwjy = { action: 'Angry', userId: req.body.user, evseSerial: req.body.evse };
+        cwjy = { action: 'Angry', userId: req.body.user, evseSerial: evseSerial };
         result = await connDBServer.sendAndReceive(cwjy);
         console.log('angry: ' + result);
         if (result)
@@ -389,25 +402,25 @@ function APIController(server) {
     res.end();
   }
 
-  lockActionProcess = (evseSerial) => {
-    var found = lockArray.find(item => item == evseSerial);
+  lockActionProcess = (key) => {
+    var found = lockArray.find(item => item == key);
     if(found) {
-      console.log (`apiController: [${evseSerial}] is already locked`);
+      console.log (`apiController: [${key}] is already locked`);
       return false;
     }
-    console.log('lock: ' + evseSerial);
-    lockArray.push(evseSerial);
+    console.log('lock: ' + key);
+    lockArray.push(key);
     return true;
   }
 
-  unlockActionProcess = (evseSerial) => {
-    console.log('unlock: ' + evseSerial);
-    var index = lockArray.findIndex(item => item == evseSerial);
+  unlockActionProcess = (key) => {
+    console.log('unlock: ' + key);
+    var index = lockArray.findIndex(item => item == key);
     if (index >= 0) {
       lockArray.splice(index, 1);
     }
     else {
-      console.log(`apiController: Can't find [${evseSerial}].`);
+      console.log(`apiController: Can't find [${key}].`);
     }
   }
 
