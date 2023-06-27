@@ -72,7 +72,7 @@ client.on('connect', (connection) => {
     var sampled = meterstart + (0.1 * repeats++);
     var A = Math.floor(Math.random() * 10) + 20;
     var V = Math.floor(Math.random() * 30 - 15) + 220;
-    var T = Math.floor(Math.heartbeat() * 40) + 20;
+    var T = Math.floor(Math.random() * 40) + 20;
     var mv = `[2, "${uuidv1()}", "MeterValues",  { "connectorId": 1, "transactionId": ${trxid},
                    "meterValue": [
                       {"timeStamp": "${Date.now()}", 
@@ -128,8 +128,7 @@ client.on('connect', (connection) => {
         break;
       case 'meter':
         if(command[1])
-          sending = `[2, "${uuidv1()}", "MeterValues",  { "connectorId": 1, "transactionId": "${command[1]}",
-                         "meterValue": { "timeStamp": "${Date.now()}", "sampledValue": {"value":${command[2]}}}}]`;
+          metervalue(command[1], command[2]);
         else
           console.log('usage: meter {trxId} {meterValue}');
         break;

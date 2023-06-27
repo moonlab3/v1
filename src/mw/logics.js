@@ -104,9 +104,10 @@ function DBController (dbms) {
         ///////////////////////////////////////////////////////
         // TODO
         // process metervalue 
+        var kwh = cwjy.pdu.meterValue[0].sampledValue[0].value;
         query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP 
                   WHERE evseSerial = '${cwjy.evseSerial}';
-                 UPDATE bill set meterNow = '${cwjy.pdu.meterValue.sampledValue.value}'
+                 UPDATE bill set meterNow = '${kwh}'
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
         console.log('metermeter: ' + JSON.stringify(cwjy.pdu));
         console.log('metermeter: ' + query);
