@@ -54,11 +54,39 @@ init();
 client.on('connect', (connection) => {
   var repeatCount = 0, repeats = 0;
   var command, last, lastid, sending;
+  var availability = 'Accepted';
+  var meterInterval;
+
+  function sendAndLog(msg) {
+    connection.send(msg);
+    console.log('sending: ' + msg);
+    last = (JSON.parse(msg)[0] == 2) ? JSON.parse(msg)[2] : null;
+  }
+
+  function heartbeat() {
+    var hb = `[2, "${uuidv1()}", "Heartbeat", {}]`;
+    sendAndLog(hb);
+  }
+
+  function metervalue(trxid, meterstart) {
+    var sampled = meterstart + (0.1 * repeats++);
+    var A = Math.floor(Math.random() * 10) + 20;
+    var V = Math.floor(Math.random() * 30 - 15) + 220;
+    var T = Math.floor(Math.heartbeat() * 40) + 20;
+    var mv = `[2, "${uuidv1()}", "MeterValues",  { "connectorId": 1, "transactionId": ${trxid},
+                   "meterValue": [
+                      {"timeStamp": "${Date.now()}", 
+                        "sampledValue": [{"measurand": "Energy.Active.Import.Register", "unit": "kWh", "value": ${sampled}},
+                                         {"measurand": "Energy.Active.Import.Interval", "unit": "kWh", "value": 0.0},
+                                         {"measurand": "Current.Import", "unit": "A", "value": ${A}},
+                                         {"measurand": "Voltage", "unit": "V", "value":${V}},
+                                         {"measurand": "Temperature", "unit": "C", "value":${T}}
+                      ]}]}]`;
+    sendAndLog(mv);
+  }
 
   sending = `[2, "${uuidv1()}", "BootNotification", {"chargePointModel":"hcLab1", "chargePointVendor": "hclab"}]`;
-  connection.send(sending);
-  console.log('sending: ' + sending);
-        /////////////////////////////////////////////// check cpID and evseSerial
+  sendAndLog(sending);
   
   var stdin = process.openStdin();
   stdin.on('data', (input) => {
@@ -100,8 +128,8 @@ client.on('connect', (connection) => {
         break;
       case 'meter':
         if(command[1])
-          sending = `[2, "${uuidv1()}", "MeterValues",  { "connectorId": 1, 
-                        "meterValue": {"timeStamp": "${Date.now()}", "transactionId": "${command[1]}", "sampledValue": {"value":${command[2]}}}}]`;
+          sending = `[2, "${uuidv1()}", "MeterValues",  { "connectorId": 1, "transactionId": "${command[1]}",
+                         "meterValue": { "timeStamp": "${Date.now()}", "sampledValue": {"value":${command[2]}}}}]`;
         else
           console.log('usage: meter {trxId} {meterValue}');
         break;
@@ -113,9 +141,9 @@ client.on('connect', (connection) => {
         break;
       case 'response':
         if(command[1])
-          sending = `[3, "${lastid}", "${last}", {"status": "Rejected"}]`;
+          sending = `[3, "${lastid}", {"status": "Rejected"}]`;
         else
-          sending = `[3, "${lastid}", "${last}", {"status": "Accepted"}]`;
+          sending = `[3, "${lastid}", {"status": "Accepted"}]`;
         break;
       case 'repeat':
         repeatCount = 0;
@@ -133,8 +161,7 @@ client.on('connect', (connection) => {
     }
 
     if (sending) {
-      console.log('sending: ' + sending);
-      connection.send(sending);
+      sendAndLog(sending);
     }
 
     function repeat() {
@@ -146,11 +173,61 @@ client.on('connect', (connection) => {
 
   });
 
+  let meterStart=0, bulkStart=0;
 
   connection.on('message', (message) => {
     console.log('rcved: ' + JSON.stringify(message.utf8Data));
-    last = JSON.parse(message.utf8Data)[2];
-    lastid = JSON.parse(message.utf8Data)[1];
+    var msgType = JSON.parse(message.utf8Data)[0];
+    var msgid = JSON.parse(message.utf8Data)[1];
+    var action = (msgType == 2) ? JSON.parse(message.utf8Data)[2] : last;
+    var payload = (msgType == 2) ? JSON.parse(message.utf8Data)[3] : JSON.parse(message.utf8Data)[2];
+    //console.log(`msgType: ${msgType} action: ${action} last: ${last}`);
+    switch(action) {
+      case 'RemoteStartTransaction':
+        sending = `[3, "${msgid}", {"status": "${availability}"}]`;
+        sendAndLog(sending);
+        meterStart = Math.floor(Math.random() * (3000) * 100) / 100;
+        bulkStart = Math.floor(Math.random() * 70 * 100) / 100 + 1;
+        sending = `[2, "${uuidv1()}", "StartTransaction", {"connectorId": 1, "idTag": "${payload.idTag}", 
+                                                           "meterStart": ${meterStart}, "timeStamp": ${Date.now()},
+                                                           "bulkSoc": ${bulkStart}, "fullSoc": 72.7 }]`;
+        sendAndLog(sending);
+        repeats = 1;
+        break;
+      case 'RemoteStopTransaction':
+        sending = `[3, "${msgid}", {"status": "${availability}"}]`;
+        sendAndLog(sending);
+        var meter = meterStart + (Math.random() * 60);
+        sending = `[2, "${uuidv1()}", "StopTransaction", {"transactionId": "${payload.transactionId}", "meterStop": ${meter}, 
+                                                          "timeStamp": ${Date.now()}, "reason": "1"}]`;
+        sendAndLog(sending);
+        break;
+      case 'ChangeAvailability':
+        if(payload.type == 'Operative')
+          availability = 'Accepted';
+        else
+          availability = 'Rejected';
+        sendAndLog(sending);
+        break;
+      case 'DataTransfer':
+        sending = `[3, "${msgid}", {"status": "Accpeted"}]`;
+        sendAndLog(sending);
+        break;
+      case 'StartTransaction':
+        meterInterval = setInterval(metervalue, 6 * 1000, payload.transactionId, meterStart);
+        break;
+      case 'StopTransaction':
+        clearInterval(meterInterval);
+        break;
+      case 'ChangeConfiguration':
+      case 'ClearCache':
+      case 'Reset':
+      case 'Unlock':
+        break;
+      case 'BootNotification':
+        setInterval(heartbeat, payload.interval * 1000);
+        break;
+    }
   });
 
 

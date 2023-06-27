@@ -20,7 +20,7 @@ function DBController (dbms) {
 
   extRequest = async (cwjy, callback) => {
     requestCount++;
-    var returnValue, query, result, temp;
+    var returnValue, query, result;
     switch (cwjy.action) {
       case 'GetSerial':
         query = `SELECT evseSerial FROM evsecheck WHERE evseNickname = '${cwjy.evseNickname}'`;
@@ -31,6 +31,7 @@ function DBController (dbms) {
         break;
       case 'UserStatus':
         query = `SELECT * FROM evsecheck WHERE occupyingUserId = '${cwjy.userId}'`;
+        /*
         result = await dbConnector.submitSync(query);
         if ( result[0].status == 'Reserved' ) {
 
@@ -38,9 +39,10 @@ function DBController (dbms) {
         else if ( result[0].status == 'Charging' || result[0].status == 'Finishing' ) {
           query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' AND finished IS NULL`;
         }
+        */
         break;
       case 'ChargingStatus':
-        query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' AND finished IS NULL`;
+        query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
         break;
       case 'Reserve':
         //var reserveUntil = (Date.now() + (SQL_RESERVE_DURATION_MINUTE * 60 * 1000)) / 1000;
@@ -106,6 +108,8 @@ function DBController (dbms) {
                   WHERE evseSerial = '${cwjy.evseSerial}';
                  UPDATE bill set meterNow = '${cwjy.pdu.meterValue.sampledValue.value}'
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
+        console.log('metermeter: ' + JSON.stringify(cwjy.pdu));
+        console.log('metermeter: ' + query);
         break;
       case 'StartTransaction':
         cwjy.pdu.transactionId = trxCount++;
@@ -118,11 +122,13 @@ function DBController (dbms) {
 
         query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${cwjy.pdu.idTag}', occupyingEnd = FROM_UNIXTIME(${est}) 
                   WHERE evseSerial = '${cwjy.evseSerial}';
-                 INSERT INTO bill (started, evseSerial, userId, trxId, bulkSoc, fullSoc, meterStart)
+                 INSERT INTO bill (started, evseSerial, userId, trxId, bulkSoc, fullSoc, meterStart, meterNow)
                   VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${cwjy.pdu.idTag}',
-                  '${cwjy.pdu.transactionId}', '${cwjy.pdu.bulkSoc}', '${cwjy.pdu.fullSoc}', '${cwjy.pdu.meterStart}');
+                  '${cwjy.pdu.transactionId}', '${cwjy.pdu.bulkSoc}', '${cwjy.pdu.fullSoc}', 
+                  '${cwjy.pdu.meterStart}', '${cwjy.pdu.meterStart}');
                  UPDATE bill LEFT JOIN evse ON bill.evseSerial = evse.evseSerial
-                  SET bill.chargePointId = evse.chargePointId, bill.ownerId = evse.ownerId
+                  SET bill.chargePointId = evse.chargePointId, bill.ownerId = evse.ownerId,
+                    bill.evseNickname = evse.evseNickname
                   WHERE bill.trxId = '${cwjy.pdu.transactionId}';
                  INSERT INTO favorite (userId, chargePointId, recent)
                   SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
@@ -133,6 +139,11 @@ function DBController (dbms) {
         query = `SELECT meterStart, priceHCL, priceHost FROM bill JOIN chargepoint 
                   ON bill.chargePointId = chargepoint.chargePointId WHERE trxId = '${cwjy.pdu.transactionId}'`;
         result = await dbConnector.submitSync(query);
+        if(!result) {
+          console.log('logic error. no transaction ongoing.');
+          query = '';
+          break;
+        }
         var totalkWh = Number(cwjy.pdu.meterStop) - Number(result[0].meterStart);
         var costhcl = totalkWh * Number(result[0].priceHCL);
         var costhost = totalkWh * Number(result[0].priceHost);
@@ -193,8 +204,6 @@ function DBController (dbms) {
     }
     result = await dbConnector.submitSync(query);
 
-    //temp = { messageType: 3, uuid: '12123', action: cwjy.action, pdu: {} };
-
     ///////////////////////////////////////////
     // result message making from here
     switch (cwjy.action) {
@@ -206,6 +215,7 @@ function DBController (dbms) {
       case 'Alarm':
       case 'Report':
       case 'Reserve':
+      case 'UserStatus':
       case 'ChargingStatus':
       case 'Angry':
       case 'EVSECheck':     
@@ -218,34 +228,32 @@ function DBController (dbms) {
         break;
       case 'Authorize':     
         if(!result)
-          temp = { idTagInfo: { status: 'Invalid' } };
+          returnValue = { idTagInfo: { status: 'Invalid' } };
         else
-          temp = { idTagInfo: { status: result[0].authStatus } };
-        returnValue = temp;
+          returnValue = { idTagInfo: { status: result[0].authStatus } };
         break;
       case 'Heartbeat':
-        temp= { currentTime: Date.now()};
-        returnValue = temp;
+        returnValue = { currentTime: Date.now()};
         break;
       case 'StartTransaction': 
-        temp= {transactionId: cwjy.pdu.transactionId, idTagInfo: { status: 'Accepted'}};
+        returnValue = {transactionId: cwjy.pdu.transactionId, idTagInfo: { status: 'Accepted'}};
+        break;
       case 'StopTransaction':  
       case 'StatusNotification':
       case 'MeterValues':
-        returnValue = temp;
+        returnValue = {};
         break;
       case 'BootNotification':
         if(!result)
-          temp = { currentTime: Date.now(), interval: 0, status: 'Rejected' };
+          returnValue = { currentTime: Date.now(), interval: 0, status: 'Rejected' };
         else {
-          temp = { currentTime: Date.now(), interval: result[0].heartbeat , status: 'Accepted' };
+          returnValue = { currentTime: Date.now(), interval: result[0].heartbeat , status: 'Accepted' };
           var now = Date.now() / 1000;
           query = `UPDATE evse SET booted = FROM_UNIXTIME(${now}), lastHeartbeat = FROM_UNIXTIME(${now}),
                     status = 'Available', occupyinguserid = NULL, occupyingEnd = NULL
                     WHERE evseSerial = '${cwjy.evseSerial}'`;
           dbConnector.submit(query);
         }
-        returnValue = temp;
         break;
     }
 

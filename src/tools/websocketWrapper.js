@@ -9,13 +9,11 @@ function WebSocketWrapper(server) {
 
   wss = new WebSocketServer({
     httpServer: server,
-    //path: '/:evse',
     autoAcceptConnections: false
   });
 
   wss.on('request', function (request) {
     var connection = request.accept('hclab-protocol');
-    //console.log('resourceURL: ' + JSON.stringify(request.resourceURL));
     var origin = String(request.resourceURL.pathname).slice(1, request.resourceURL.pathname.length);
     console.log('connected from ' + origin);
 
@@ -23,7 +21,8 @@ function WebSocketWrapper(server) {
       console.log('incoming: ' + message.utf8Data);
       try {
         var incoming = JSON.parse(message.utf8Data);
-        var parsed = { messageType: incoming[0], uuid: incoming[1], action: incoming[2], pdu: incoming[3] };
+        var parsed = (incoming[0] == 2) ? { messageType: incoming[0], uuid: incoming[1], action: incoming[2], pdu: incoming[3] }
+                                        : { messageType: incoming[0], uuid: incoming[1], pdu: incoming[2] };
         if (parsed.messageType < 2 || parsed.messageType > 4) {
           console.log('websocket server: message is not valid. (messageType: 2, 3 or 4)');
           return;
@@ -39,12 +38,16 @@ function WebSocketWrapper(server) {
             forwardTo('boot', parsed, origin);
           }
           else {
-            forwardTo('general', parsed, origin);
+            forwardTo('request', parsed, origin);
           }
           break;
         case 3:
-          console.log('DBG return from evse: ' + JSON.stringify(parsed));
-          forwardTo(origin, parsed, null);
+          //console.log('DBG return from evse: ' + JSON.stringify(parsed));
+          var found = forwardingArray.find(i => i.destination == origin);
+          if(found)
+            forwardTo(origin, parsed, null);
+          else
+            forwardTo('response', parsed, origin);
           break;
         case 4:
           break;
@@ -61,12 +64,12 @@ function WebSocketWrapper(server) {
 
   showAllForwards = () => {
     forwardingArray.forEach((entry) => {
-      console.log('showAllConnections: ' + entry.origin );
+      console.log('showAllConnections: ' + entry.destination );
     });
   }
   showAllConnections = () => {
     socketArray.forEach((entry) => {
-      console.log('showAllConnections: ' + entry.origin );
+      console.log('showAllConnections: ' + entry.destination );
     });
   }
 
@@ -74,18 +77,18 @@ function WebSocketWrapper(server) {
   // unique ID for identifying evse
   // not IP. It's constantly changing. not every hour tho
   // JSTech will cover this up. 
-  storeConnection = function (origin, connection, forceRemove) {
-    var found = socketArray.find( i  => i.origin == origin);
+  storeConnection = function (destination, connection, forceRemove) {
+    var found = socketArray.find( i  => i.destination == destination);
     if (!found || found.conn.socket.readyState > 1 || forceRemove) {
-      removeConnection(origin);
-      var sock = { origin: `${origin}`, conn: connection };
+      removeConnection(destination);
+      var sock = { destination: destination, conn: connection };
       socketArray.push(sock);
       //console.log(`store connection:  ${JSON.stringify(sock)}`);
     }
   }
 
-  removeConnection = function (origin) {
-    var index = socketArray.findIndex(i => i.origin == origin);
+  removeConnection = function (destination) {
+    var index = socketArray.findIndex(i => i.destination == destination);
     if (index >= 0) {
       socketArray[index].conn.close();
       socketArray.splice(index, 1);
@@ -93,47 +96,49 @@ function WebSocketWrapper(server) {
 
   }
 
-  sendTo = function (origin, data) {
+  sendTo = function (destination, data) {
     //console.log(`websocketWrapper:sendTo: ${JSON.stringify(data)}`);
-    var sending = [data.messageType, data.uuid, data.action, data.pdu];
+    var sending = (data.messageType == 2) ? [data.messageType, data.uuid, data.action, data.pdu]
+                                          : [data.messageType, data.uuid, data.pdu];
+    //var sending = [data.messageType, data.uuid, data.action, data.pdu];
     console.log('sending: ' + JSON.stringify(sending));
 
-    var found = socketArray.find(i => i.origin == origin);
+    var found = socketArray.find(i => i.destination == destination);
     if (found) {
       found.conn.send(JSON.stringify(sending));
       return true;
     }
     else {
-      console.warn(`wss:sendTo: No such client. ${origin} needs rebooting.`);
+      console.warn(`wss:sendTo: No such client. ${destination} needs rebooting.`);
       return false;
     }
   }
 
-  sendAndReceive = function (origin, data) {
-    sendTo(origin, data);
+  sendAndReceive = function (destination, data) {
+    sendTo(destination, data);
     return new Promise((resolve, reject) => {
       var timeout = setTimeout(() => {
         console.log('timeout. 10 seconds');
-        delistForwarding(origin);
+        delistForwarding(destination);
         resolve(null);
         return;
       }, CONNECTION_TIMEOUT);
-      enlistForwarding(origin, (result) => {
+      enlistForwarding(destination, (result) => {
         clearTimeout(timeout);
-        delistForwarding(origin);
+        delistForwarding(destination);
         console.log('sendandreceive promise: ' + JSON.stringify(result));
         resolve(result);
       });
     });
   }
 
-  enlistForwarding = function (origin, callback) {
-    var cb = { origin: origin, forward: callback };
+  enlistForwarding = function (destination, callback) {
+    var cb = { destination: destination, forward: callback };
     forwardingArray.push(cb);
   }
 
-  forwardTo = function (origin, param1, param2) {
-    var found = forwardingArray.find( i => i.origin == origin);
+  forwardTo = function (destination, param1, param2) {
+    var found = forwardingArray.find( i => i.destination == destination);
     if (!found) {
       console.log('wss:response without request');
       return;
@@ -145,8 +150,8 @@ function WebSocketWrapper(server) {
       found.forward(param1);
     }
   }
-  delistForwarding = function (origin) {
-    var index = forwardingArray.findIndex(i => i.origin == origin);
+  delistForwarding = function (destination) {
+    var index = forwardingArray.findIndex(i => i.destination == destination);
     if (index >= 0) {
       forwardingArray.splice(index, 1);
     }

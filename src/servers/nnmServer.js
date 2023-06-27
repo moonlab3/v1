@@ -21,8 +21,7 @@ function updateRequest(cwjy) {
 function init() {
   console.log('notification and monitoring server on.');
   monitor.registerSender(updateRequest);
-  //startMonitor(NNMSERVER_MONITORING_INTERVAL_SECS);
-  startMonitor(60 * 10);
+  //startMonitor(60 * NNMSERVER_MONITORING_INTERVAL_SECS);
 }
 
 function stopMonitor() {

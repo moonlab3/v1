@@ -22,45 +22,36 @@ function APIController(server) {
   hScan = async (req, res, next) => {
     waitingJobs++;
     var reqToCP, resultCP;
-    //const evseSerial = await connDBServer.sendAndReceive({ action: "GetSerial", evseNickname: req.body.evse });
     var cwjy = { action: "EVSECheck", userId: req.body.user, evseNickname: req.body.evse};
     console.log(JSON.stringify(cwjy));
     console.log(req.body);
     var resultDB = await connDBServer.sendAndReceive(cwjy);
     if(!resultDB || !req.body.user) {
       console.log('result is null');
-      res.response = { responseCode: { type: 'error', name: 'wrong parameters'}, result: [] };
+      res.response = { responseCode: { type: 'error', name: 'no data'}, result: [] };
       next();
       return;
     }
     var response = { responseCode: { type: 'temp', name: 'temp'}, result: resultDB };
     const evseSerial = resultDB[0].evseSerial;
-    /*
-    res.response = response;
-    next();
-    return;
-    */
 
     if(((resultDB[0].status == 'Reserved' || resultDB[0].status == 'Finishing') && resultDB[0].occupyingUserId == req.body.user)
       || resultDB[0].status == 'Available') {
       console.log('scan >> charge');
       lockActionProcess(req.body.evse);
 
-      reqToCP = { messageType: 2, uuid: uuidv1(), action: 'RemoteStartTransaction', pdu: { idTag: req.body.user } };
-      //result = await connCP.sendAndReceive(req.body.evse, reqToCP);
+      reqToCP = { messageType: 2, uuid: uuidv1(), action: 'RemoteStartTransaction', pdu: { idTag: req.body.user , connectorId: 1} };
       resultCP = await connCP.sendAndReceive(evseSerial, reqToCP);
       console.log('after resolve start charge evse result: ' + JSON.stringify(resultCP));
       if (!resultCP) {
         console.log('timeout timeout');
         response.responseCode = { type: 'error', name: 'temporarily unavailable' };
-        //////////////////////////////////////////////
         unlockActionProcess(req.body.evse);
         res.response = response;
         next();
         return;
       }
       if (resultCP.pdu.status == 'Accepted') {
-        //cwjy = { action: "StatusNotification", userId: req.body.user, evseSerial: req.body.evse, pdu: { status: 'Preparing' } };
         cwjy = { action: "StatusNotification", userId: req.body.user, evseSerial: evseSerial, pdu: { status: 'Preparing' } };
         console.log('hscanAction: EVSE says OK to charge');
         resultDB = await connDBServer.sendAndReceive(cwjy);
@@ -68,7 +59,7 @@ function APIController(server) {
         response.result[0].status = 'Preparing';
       }
       else {
-        console.log('hscanAction: EVSE says Reject ');
+        console.log('hscan: EVSE says Reject ');
         response.responseCode = { type: 'error', name: 'evse problem' };
       }
 
@@ -143,17 +134,23 @@ function APIController(server) {
     waitingJobs++;
     var cwjy, result, reqToCP;
     var response = { responseCode: { type: 'temp', name: 'temp'}, result: [] };
-    const evseSerial = await connDBServer.sendAndReceive({ action: 'GetSerial', evseNickname: req.body.evse });
+    result = await connDBServer.sendAndReceive({ action: 'GetSerial', evseNickname: req.body.evse });
+    if(!result) {
+      response.responseCode = { type: 'error', name: 'no result' };
+      res.response = response;
+      next();
+    }
+    const evseSerial = result[0].evseSerial;
 
     switch (req.body.action) {
+      case 'Charge':
+        break;
       case 'Reserve':
         lockActionProcess(req.body.evse);
-        //cwjy = { action: 'Reserve', userId: req.body.user, evseSerial: req.body.evse };
         cwjy = { action: 'Reserve', userId: req.body.user, evseSerial: evseSerial };
         connDBServer.sendOnly(cwjy);
 
         reqToCP = { messageType: 2, uuid: uuidv1(), action: 'DataTransfer', pdu: { vendorId: 'hclab.temp', data: 'yellow' } };
-        //connCP.sendTo(req.body.evse, reqToCP);
         connCP.sendTo(evseSerial, reqToCP);
 
         response.responseCode = { type: 'toast', name: 'reserve ok' };
@@ -161,29 +158,25 @@ function APIController(server) {
         break;
       case 'Blink':
         reqToCP = { messageType: 2, uuid: uuidv1(), action: 'DataTransfer', pdu: { vendorId: 'com.hclab', data: 'blink' } };
-        //connCP.sendTo(req.body.evse, reqToCP);
         connCP.sendTo(evseSerial, reqToCP);
         response.responseCode = { type: 'toast', name: 'blink ok' };
         break;
       case 'Cancel':
         var trxId;
         cwjy = { action: 'ChargingStatus', userId: req.body.user };
-        result = connDBServer.sendAndReceive(cwjy);
-        for (var i in result) {
-          //if(result[i].evseSerial == req.body.evseSerial)
-          if(result[i].evseSerial == evseSerial)
-            trxId = result[i].trxId;
+        result = await connDBServer.sendAndReceive(cwjy);
+        if(result[0].evseSerial == evseSerial) {
+          trxId = result[0].trxId;
+        }
+        else {
+          console.log('parameter error or wrong record');
         }
 
         reqToCP = { messageType: 2, uuid: uuidv1(), action: 'RemoteStopTransaction', pdu: { transactionId: trxId } };
-        //result = await connCP.sendAndReceive(req.body.evse, reqToCP);
         result = await connCP.sendAndReceive(evseSerial, reqToCP);
         if (result) {
           if (result.pdu.status == 'Accepted') {
-            //cwjy = { action: '', userId: req.body.user, evseSerial: req.body.evse };
-            //connDBServer.sendOnly(cwjy);
             response = { responseCode: { type: 'page', name: 'charging canceled'}, result: [{ status: 'Finishing'}]};
-            //response.result = [{ status: 'Finishing'} ];
           }
           else {
             // EVSE says no
@@ -196,13 +189,11 @@ function APIController(server) {
         }
         break;
       case 'Alarm':
-        //cwjy = { action: 'Alarm', userId: req.body.user, evseSerial: req.body.evse };
         cwjy = { action: 'Alarm', userId: req.body.user, evseSerial: evseSerial };
         connDBServer.sendOnly(cwjy);
         response.responseCode = { type: 'toast', name: 'alarm ok' };
         break;
       case 'Angry':
-        //cwjy = { action: 'Angry', userId: req.body.user, evseSerial: req.body.evse };
         cwjy = { action: 'Angry', userId: req.body.user, evseSerial: evseSerial };
         result = await connDBServer.sendAndReceive(cwjy);
         console.log('angry: ' + result);
@@ -223,8 +214,8 @@ function APIController(server) {
     var result = await connDBServer.sendAndReceive(cwjy);
     res.response = { responseCode: { type: 'page', name: 'user status' }, result: result};
     next();
-
   }
+
   getUserChargingStatus = async (req, res, next) => {
     waitingJobs++;
     var cwjy = { action: "ChargingStatus", userId: req.params.user};
@@ -232,7 +223,10 @@ function APIController(server) {
 
     for (var i in result) {
       var elapsed = new Date(Date.now() - new Date(result[i].started));
-      result[i].elapsed = elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
+      if(elapsed.getDate() > 0)
+        result[i].elapsed = elapsed.getDate() + ":" + elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
+      else
+        result[i].elapsed = elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
       result[i].currentSoc = result[i].bulkSoc + (result[i].meterNow - result[i].meterStart);
       result[i].price = (result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart);
     }
@@ -286,7 +280,6 @@ function APIController(server) {
 
     var cwjy = { action: "NewUserFavo", userId: req.body.user, chargePointId: req.body.cp, favo: 'favorite'};
     var result = await connDBServer.sendAndReceive(cwjy);
-    //console.log('put result: ' + JSON.stringify(result));
     if(!result)
       res.response = { responseCode: { type: 'popup', name: 'already done' }, result: []};
     else
@@ -312,7 +305,6 @@ function APIController(server) {
     var result = await connDBServer.sendAndReceive(cwjy);
     res.response = { responseCode: { type: 'page', name: 'cp info' }, result: result};
     next();
-
   }
 
   getChargePointList = async (req, res, next) => {
@@ -341,7 +333,7 @@ function APIController(server) {
 
   evseBoot = async (req, origin) => {
     req.evseSerial = origin;
-    var conf = { messageType: 3, uuid: req.uuid, action: req.action, pdu: {} };
+    var conf = { messageType: 3, uuid: req.uuid, pdu: {} };
     conf.pdu = await connDBServer.sendAndReceive(req);
     if (conf.pdu.status !== 'Accepted') {
       console.log(`This EVSE(${origin}) is not authorized.`);
@@ -353,7 +345,7 @@ function APIController(server) {
 
   evseRequest = async (req, origin) => {
     req.evseSerial = origin;
-    var conf = { messageType: 3, uuid: req.uuid, action: req.action, pdu: {} };
+    var conf = { messageType: 3, uuid: req.uuid, pdu: {} };
     switch (req.action) {
       case 'Heartbeat':
       case 'MeterValues':
@@ -373,6 +365,21 @@ function APIController(server) {
         return;
     }
     connCP.sendTo(origin, conf);
+  }
+  evseResponse = async (req, origin) => {
+    req.evseSerial = origin;
+    switch (req.action) {
+      case 'ChangeAvailability':
+      case 'ChangeConfiguration':
+      case 'ClearCache':
+      case 'DataTransfer':
+      case 'GetConfiguration':
+      case 'Reset':
+      case 'UnlockConnector':
+        break;
+
+    }
+    
   }
 
   csmsBasic = (req, res, next) => {
@@ -461,14 +468,16 @@ function APIController(server) {
     postDamageReport,
     evseBoot,
     evseRequest,
+    evseResponse,
     csmsBasic,
     csmsReport,
     csmsControl,
     writeResponse
   }
 
-  connCP.enlistForwarding('general', evseRequest);
   connCP.enlistForwarding('boot', evseBoot);
+  connCP.enlistForwarding('request', evseRequest);
+  connCP.enlistForwarding('response', evseResponse);
   consoleCommand();
 
   return apiController;
