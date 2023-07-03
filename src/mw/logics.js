@@ -26,29 +26,15 @@ function DBController (dbms) {
         query = `SELECT evseSerial FROM evsecheck WHERE evseNickname = '${cwjy.evseNickname}'`;
         break;
       case 'EVSECheck':
-        //query = `SELECT * FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`;
         query = `SELECT * FROM evsecheck WHERE evseNickname = '${cwjy.evseNickname}'`;
         break;
       case 'UserStatus':
         query = `SELECT * FROM evsecheck WHERE occupyingUserId = '${cwjy.userId}'`;
-        /*
-        result = await dbConnector.submitSync(query);
-        if ( result[0].status == 'Reserved' ) {
-
-        }
-        else if ( result[0].status == 'Charging' || result[0].status == 'Finishing' ) {
-          query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' AND finished IS NULL`;
-        }
-        */
         break;
       case 'ChargingStatus':
         query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
         break;
       case 'Reserve':
-        //var reserveUntil = (Date.now() + (SQL_RESERVE_DURATION_MINUTE * 60 * 1000)) / 1000;
-        //query = `UPDATE evse SET status = 'Reserved', occupyingUserId = '${cwjy.userId}', 
-               //occupyingEnd = FROM_UNIXTIME(${reserveUntil})
-               //WHERE evseSerial = '${cwjy.evseSerial}'`;
         query = `UPDATE evse SET status = 'Reserved', occupyingUserId = '${cwjy.userId}', 
                occupyingEnd = DATE_ADD(NOW(), INTERVAL + ${SQL_RESERVE_DURATION_MINUTE} MINUTE)
                WHERE evseSerial = '${cwjy.evseSerial}'`;
@@ -58,11 +44,16 @@ function DBController (dbms) {
         var target = await dbConnector.submitSync(query);
         query = `SELECT * FROM notification WHERE recipientId = '${target[0].occupyingUserId}'`;
         result = await dbConnector.submitSync(query);
+        query = (!result) ? `INSERT INTO notification (evseSerial, recipientId, type)
+                              VALUES ('${cwjy.evseSerial}', '${target[0].occupyingUserId}', 'Angry')`
+                          : null;
+        /*
         if(!result)
           query = `INSERT INTO notification (evseSerial, recipientId, type)
                     VALUES ('${cwjy.evseSerial}', '${target[0].occupyingUserId}', 'Angry')`;
         else
           query = null;
+          */
         break;
       case 'Alarm':
         query = `INSERT INTO notification (evseSerial, recipientId, type)
@@ -78,7 +69,6 @@ function DBController (dbms) {
         query = `SELECT * FROM cpbasic 
                   WHERE lat < '${box.top}' AND lat > '${box.bottom}'
                   AND lng < '${box.right}' AND lng > '${box.left}'`;
-        //console.log(query);
         break;
       case 'ShowAllCPbyName':
         query = `SELECT * FROM cpbasic
@@ -104,6 +94,16 @@ function DBController (dbms) {
         ///////////////////////////////////////////////////////
         // TODO
         // process metervalue 
+        /*
+        var kWh;
+        for ( var i in cwjy.pdu.meterValue) {
+          for ( var j in cwjy.pdu.meterValue[i].sampledValue) {
+            if(cwjy.pdu.meterValue[i].sampledValue[j].measurand == 'Energy.Active.Import.Register')
+              kWh = cwjy.pdu.meterValue[i].sampledValue[j].value;
+            
+          }
+        }
+        */
         var kwh = cwjy.pdu.meterValue[0].sampledValue[0].value;
         query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP 
                   WHERE evseSerial = '${cwjy.evseSerial}';
@@ -155,20 +155,32 @@ function DBController (dbms) {
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
         break;
       case 'StatusNotification':
+        query = (cwjy.userId) ? `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = '${cwjy.userId}'
+                                  WHERE evseSerial = '${cwjy.evseSerial}'`
+                              : `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = NULL, occupyingEnd = NULL
+                                  WHERE evseSerial = '${cwjy.evseSerial}'`;
+        /*
         if (cwjy.userId)
           query = `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = '${cwjy.userId}'
                     WHERE evseSerial = '${cwjy.evseSerial}'`;
         else
           query = `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = NULL, occupyingEnd = NULL
                     WHERE evseSerial = '${cwjy.evseSerial}'`;
+        */
         break;
       case 'GetUserFavo':
+        query = (cwjy.favo == 'favorite') ? `SELECT * FROM favoriteinfos WHERE userId = '${cwjy.userId}'
+                                              AND favoriteOrder IS NOT NULL ORDER BY favoriteOrder`
+                                          : `SELECT * FROM favoriteinfos WHERE userId = '${cwjy.userId}'
+                                              AND recent IS NOT NULL ORDER BY recent`;
+        /*
         if(cwjy.favo == 'favorite')
           query = `SELECT * FROM favoriteinfos WHERE userId = '${cwjy.userId}' AND favoriteOrder IS NOT NULL
                     ORDER BY favoriteOrder`;
         else if(cwjy.favo == 'recent')
           query = `SELECT * FROM favoriteinfos WHERE userId = '${cwjy.userId}' AND recent IS NOT NULL
                     ORDER BY recent`;
+                    */
         break;
       case 'NewUserFavo':
         if(cwjy.favo == 'favorite') {
@@ -181,12 +193,23 @@ function DBController (dbms) {
         else if(cwjy.favo == 'recent') {
           query = `SELECT chargePointId AS cpid FROM evse WHERE occupyingUserId = '${cwjy.userId}'`;
           result = await dbConnector.submitSync(query);
-          if(result) {
-            query = `INSERT INTO favorite (userId, chargePointId, recent)
-                      VALUES ('${cwjy.userId}', '${result[0].cpid}', CURRENT_TIMESTAMP)`;
+          var cpid = result[0].cpid;
+          if(cpid) {
+            query = `SELECT * FROM favorite WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}'`;
+            result = await dbConnector.submitSync(query);
+            if(result) {
+              console.log('visited before');
+              query = `UPDATE favorite SET recent = CURRENT_TIMESTAMP 
+                      WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}'`;
+            }
+            else {
+              console.log('newly visited');
+              query = `INSERT INTO favorite (userId, chargePointId, recent)
+                      VALUES ('${cwjy.userId}', '${cpid}', CURRENT_TIMESTAMP)`;
+            }
           }
           else {
-            console.log('add recently visited place error');
+            console.log('no such chargepointid. this is wrong.');
           }
         }
         else {
@@ -228,16 +251,19 @@ function DBController (dbms) {
           returnValue = result;
         break;
       case 'Authorize':     
+        returnValue = (!result) ? { idTagInfo: { status: 'Invalid' } } : { idTagInfo: { status: result[0].authStatus } };
+        /*
         if(!result)
           returnValue = { idTagInfo: { status: 'Invalid' } };
         else
           returnValue = { idTagInfo: { status: result[0].authStatus } };
+        */
         break;
       case 'Heartbeat':
-        returnValue = { currentTime: Date.now()};
+        returnValue = { currentTime: Date.now() };
         break;
       case 'StartTransaction': 
-        returnValue = {transactionId: cwjy.pdu.transactionId, idTagInfo: { status: 'Accepted'}};
+        returnValue = { transactionId: cwjy.pdu.transactionId, idTagInfo: { status: 'Accepted' } };
         break;
       case 'StopTransaction':  
       case 'StatusNotification':
@@ -266,10 +292,10 @@ function DBController (dbms) {
     var latPerKM = ( 1 / (EARTH_RADIUS * 1 * (Math.PI / 180))) / 1000;
     var lngPerKM = ( 1 / (EARTH_RADIUS * 1 * (Math.PI / 180) * Math.cos(lat * Math.PI / 180))) / 1000;
 
-    var box = {top: (parseFloat(lat) + (rng * latPerKM)), 
-               bottom: (parseFloat(lat) - (rng * latPerKM)),
-               right: (parseFloat(lng) + (rng * lngPerKM)),
-               left: (parseFloat(lng) - (rng * lngPerKM))};
+    var box = { top: (parseFloat(lat) + (rng * latPerKM)), 
+                bottom: (parseFloat(lat) - (rng * latPerKM)),
+                right: (parseFloat(lng) + (rng * lngPerKM)),
+                left: (parseFloat(lng) - (rng * lngPerKM)) };
     return box;
   }
 

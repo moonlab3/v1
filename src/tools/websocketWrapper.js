@@ -13,7 +13,13 @@ function WebSocketWrapper(server) {
   });
 
   wss.on('request', function (request) {
-    var connection = request.accept('hclab-protocol');
+    try {
+      var connection = request.accept('hclab-protocol');
+    } catch (e) {
+      console.log('wrong protocol');
+      return;
+    }
+
     var origin = String(request.resourceURL.pathname).slice(1, request.resourceURL.pathname.length);
     console.log('connected from ' + origin);
 
@@ -37,8 +43,11 @@ function WebSocketWrapper(server) {
             storeConnection(origin, connection, true);
             forwardTo('boot', parsed, origin);
           }
-          else {
+          else if( isValidConnection(origin) ) {
             forwardTo('request', parsed, origin);
+          }
+          else {
+            console.log('message comes from unauthorized CP.');
           }
           break;
         case 3:
@@ -77,6 +86,9 @@ function WebSocketWrapper(server) {
   // unique ID for identifying evse
   // not IP. It's constantly changing. not every hour tho
   // JSTech will cover this up. 
+  isValidConnection = function (destination) {
+    return socketArray.find( i => i.destination == destination);
+  }
   storeConnection = function (destination, connection, forceRemove) {
     var found = socketArray.find( i  => i.destination == destination);
     if (!found || found.conn.socket.readyState > 1 || forceRemove) {

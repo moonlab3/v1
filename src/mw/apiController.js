@@ -175,6 +175,10 @@ function APIController(server) {
         reqToCP = { messageType: 2, uuid: uuidv1(), action: 'RemoteStopTransaction', pdu: { transactionId: trxId } };
         result = await connCP.sendAndReceive(evseSerial, reqToCP);
         if (result) {
+          response = (result.pdu.status == 'Accepted')
+                     ? { responseCode: { type: 'page', name: 'charging canceled'}, result: [{ status: 'Finishing'}]}
+                     : { responseCode: { type: 'error', name: 'evse problem'}};
+          /*
           if (result.pdu.status == 'Accepted') {
             response = { responseCode: { type: 'page', name: 'charging canceled'}, result: [{ status: 'Finishing'}]};
           }
@@ -182,6 +186,7 @@ function APIController(server) {
             // EVSE says no
             response.responseCode = { type: 'error', name: 'evse problem' };
           }
+          */
         }
         else {
           response.responseCode = { type: 'error', name: 'temporarily unavailable' };
@@ -197,10 +202,13 @@ function APIController(server) {
         cwjy = { action: 'Angry', userId: req.body.user, evseSerial: evseSerial };
         result = await connDBServer.sendAndReceive(cwjy);
         console.log('angry: ' + result);
+        response.responseCode = (result) ? { type: 'toast', name: 'angry ok' } : { type: 'toast', name: 'angry done' };
+        /*
         if (result)
           response.responseCode = { type: 'toast', name: 'angry ok' };
         else
           response.responseCode = { type: 'toast', name: 'angry done already' };
+        */
         break;
     }
 
@@ -223,10 +231,14 @@ function APIController(server) {
 
     for (var i in result) {
       var elapsed = new Date(Date.now() - new Date(result[i].started));
+      result[i].elapsed = (elapsed.getDate() > 0) ? elapsed.getDate() + ":" : "";
+      result[i].elapsed += elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
+      /*
       if(elapsed.getDate() > 0)
         result[i].elapsed = elapsed.getDate() + ":" + elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
       else
         result[i].elapsed = elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
+        */
       result[i].currentSoc = result[i].bulkSoc + (result[i].meterNow - result[i].meterStart);
       result[i].price = (result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart);
     }
@@ -239,10 +251,14 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "UserHistory", userId: req.params.user};
     var result = await connDBServer.sendAndReceive(cwjy);
+    res.response = (!result) ? { responseCode: { type: 'error', name: 'wrong parameters' }, result: []}
+                             : { responseCode: { type: 'page', name: 'user history' }, result: result };
+    /*
     if(!result)
       res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: []};
     else
       res.response = { responseCode: { type: 'page', name: 'user history' }, result: result };
+      */
 
     next();
   }
@@ -251,10 +267,14 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "GetUserFavo", userId: req.params.user, favo: 'recent'};
     var result = await connDBServer.sendAndReceive(cwjy);
+    res.response = (!result) ? { responseCode: { type: 'error', name: 'wrong parameters' }, result: [] }
+                             : { responseCode: { type: 'page', name: 'recently visited' }, result: result };
+    /*
     if(!result)
       res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: []};
     else
       res.response = { responseCode: { type: 'page', name: 'recently visited' }, result: result };
+      */
 
     next();
   }
@@ -262,10 +282,14 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "GetUserFavo", userId: req.params.user, favo: 'favorite'};
     var result = await connDBServer.sendAndReceive(cwjy);
+    res.response = (!result) ? { responseCode: { type: 'error', name: 'wrong parameters' }, result: [] }
+                             : { responseCode: { type: 'page', name: 'user favorite' }, result: result };
+    /*
     if(!result)
       res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: []};
     else
       res.response = { responseCode: { type: 'page', name: 'user favorite' }, result: result };
+      */
 
     next();
   }
@@ -280,10 +304,15 @@ function APIController(server) {
 
     var cwjy = { action: "NewUserFavo", userId: req.body.user, chargePointId: req.body.cp, favo: 'favorite'};
     var result = await connDBServer.sendAndReceive(cwjy);
+
+    res.response = (!result) ? { responseCode: { type: 'popup', name: 'already done' }, result: [] }
+                             : { responseCode: { type: 'popup', name: 'add ok' }, result: [] };
+    /*
     if(!result)
       res.response = { responseCode: { type: 'popup', name: 'already done' }, result: []};
     else
       res.response = { responseCode: { type: 'popup', name: 'add ok' }, result: [] };
+      */
 
     next();
   }
@@ -313,6 +342,11 @@ function APIController(server) {
     }
     else if(req.query.name) {
       cwjy = { action: 'ShowAllCPbyName', name: req.query.name};
+    }
+    else {
+      res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: result };
+      next();
+      return;
     }
     var result = await connDBServer.sendAndReceive(cwjy);
     res.response = { responseCode: { type: 'page', name: 'cp list' }, result: result};

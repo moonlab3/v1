@@ -139,10 +139,7 @@ client.on('connect', (connection) => {
         sending = `[2, "${uuidv1()}", "WhatsMySerial", {}]`;
         break;
       case 'response':
-        if(command[1])
-          sending = `[3, "${lastid}", {"status": "Rejected"}]`;
-        else
-          sending = `[3, "${lastid}", {"status": "Accepted"}]`;
+        sending = (command[1]) ? `[3, "${lastid}", {"status": "Rejected"}]` : `[3, "${lastid}", {"status": "Accepted"}]`;
         break;
       case 'repeat':
         repeatCount = 0;
@@ -202,10 +199,7 @@ client.on('connect', (connection) => {
         sendAndLog(sending);
         break;
       case 'ChangeAvailability':
-        if(payload.type == 'Operative')
-          availability = 'Accepted';
-        else
-          availability = 'Rejected';
+        availability = (payload.type == 'Operative') ? 'Accepted' : 'Rejected';
         sendAndLog(sending);
         break;
       case 'DataTransfer':
@@ -213,7 +207,7 @@ client.on('connect', (connection) => {
         sendAndLog(sending);
         break;
       case 'StartTransaction':
-        meterInterval = setInterval(metervalue, 6 * 1000, payload.transactionId, meterStart);
+        meterInterval = setInterval(metervalue, 60 * 1000, payload.transactionId, meterStart);
         break;
       case 'StopTransaction':
         clearInterval(meterInterval);
