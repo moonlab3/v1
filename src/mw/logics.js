@@ -26,13 +26,20 @@ function DBController (dbms) {
         query = `SELECT evseSerial FROM evsecheck WHERE evseNickname = '${cwjy.evseNickname}'`;
         break;
       case 'EVSECheck':
-        query = `SELECT * FROM evsecheck WHERE evseNickname = '${cwjy.evseNickname}'`;
+        query = `SELECT evseSerial, status, occupyingUserId FROM evse WHERE evseNickname = '${cwjy.evseNickname}'`;
         break;
       case 'UserStatus':
-        query = `SELECT * FROM evsecheck WHERE occupyingUserId = '${cwjy.userId}'`;
+        query = `SELECT evseSerial, evseNickname, status, occupyingUserId, 
+                        DATE_FORMAT(occupyingEnd, '%Y-%m-%e %H:%i:%s') as occupyingEnd, connectorId
+                        FROM evsecheck WHERE occupyingUserId = '${cwjy.userId}'`;
         break;
       case 'ChargingStatus':
-        query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
+        //query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
+        query = `SELECT DATE_FORMAT(started, '%Y-%m-%e %H:%i:%s') as started,
+                        DATE_FORMAT(finished, '%Y-%m-%e %H:%i:%s') as finished,
+                        chargePointId, chargePointName, userId, evseSerial, evseNickname, bulkSoc, fullSoc, trxId,
+                        meterStart, meterNow, priceHCL, priceHost
+                        FROM billstatus WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
         break;
       case 'Reserve':
         query = `UPDATE evse SET status = 'Reserved', occupyingUserId = '${cwjy.userId}', 
@@ -40,7 +47,7 @@ function DBController (dbms) {
                WHERE evseSerial = '${cwjy.evseSerial}'`;
         break;
       case 'Angry':
-        query = `SELECT * FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`;
+        query = `SELECT occupyingUserId FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`;
         var target = await dbConnector.submitSync(query);
         query = `SELECT * FROM notification WHERE recipientId = '${target[0].occupyingUserId}'`;
         result = await dbConnector.submitSync(query);
@@ -62,20 +69,33 @@ function DBController (dbms) {
       case 'Report':
         break;
       case 'ShowAllEVSE':
-        query = `SELECT * FROM evsebycp WHERE chargePointId = '${cwjy.chargePointId}'`;
+        //query = `SELECT * FROM evsebycp WHERE chargePointId = '${cwjy.chargePointId}'`;
+        query = `SELECT chargePointId, chargePointName, address, priceHCL, priceHost, priceExtra,
+                        evseSerial, evseNickname, status, occupyingUserId, 
+                        DATE_FORMAT(occupyingEnd, '%Y-%m-%e %H:%i:%s') as occupyingEnd, capacity, connectorId
+                        FROM evsebycp WHERE chargePointId = '${cwjy.chargePointId}'`;
         break;
       case 'ShowAllCPbyLoc':
         var box = getBox(cwjy.lat, cwjy.lng, cwjy.rng);
-        query = `SELECT * FROM cpbasic 
+        //query = `SELECT * FROM cpbasic 
+        query = `SELECT chargePointId, chargePointName, ownerId, lat, lng, locationDetail,
+                        address, priceHCL, priceHost, priceExtra FROM chargepoint 
                   WHERE lat < '${box.top}' AND lat > '${box.bottom}'
                   AND lng < '${box.right}' AND lng > '${box.left}'`;
         break;
       case 'ShowAllCPbyName':
-        query = `SELECT * FROM cpbasic
+        //query = `SELECT * FROM cpbasic
+        query = `SELECT chargePointId, chargePointName, ownerId, lat, lng, locationDetail,
+                        address, priceHCL, priceHost, priceExtra FROM chargepoint 
                   WHERE chargePointName LIKE '%${cwjy.name}%'`;
         break;
       case 'UserHistory':
-        query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}'`;
+        //query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}'`;
+        query = `SELECT DATE_FORMAT(started, '%Y-%m-%e %H:%i:%s') as started,
+                        DATE_FORMAT(finished, '%Y-%m-%e %H:%i:%s') as finished,
+                        chargePointId, chargePointName, userId, evseSerial, evseNickname, bulkSoc, fullSoc, trxId,
+                        meterStart, meterNow, priceHCL, priceHost
+                        FROM billstatus WHERE userId = '${cwjy.userId}'`;
         break;
       case 'BootNotification':                                    
         query = `SELECT evseSerial, heartbeat FROM evse JOIN chargepoint 
@@ -109,8 +129,8 @@ function DBController (dbms) {
                   WHERE evseSerial = '${cwjy.evseSerial}';
                  UPDATE bill set meterNow = '${kwh}'
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
-        console.log('metermeter: ' + JSON.stringify(cwjy.pdu));
-        console.log('metermeter: ' + query);
+        //console.log('metermeter: ' + JSON.stringify(cwjy.pdu));
+        //console.log('metermeter: ' + query);
         break;
       case 'StartTransaction':
         cwjy.pdu.transactionId = trxCount++;
@@ -169,9 +189,12 @@ function DBController (dbms) {
         */
         break;
       case 'GetUserFavo':
-        query = (cwjy.favo == 'favorite') ? `SELECT * FROM favoriteinfos WHERE userId = '${cwjy.userId}'
+        query = (cwjy.favo == 'favorite') ? `SELECT chargePointName, chargePointId, userId, favoriteOrder
+                                              FROM favoriteinfos WHERE userId = '${cwjy.userId}'
                                               AND favoriteOrder IS NOT NULL ORDER BY favoriteOrder`
-                                          : `SELECT * FROM favoriteinfos WHERE userId = '${cwjy.userId}'
+                                          : `SELECT chargePointName, chargePointId, userId, 
+                                              DATE_FORMAT(recent, '%Y-%m-%e %H:%i:%s') as recent
+                                              FROM favoriteinfos WHERE userId = '${cwjy.userId}'
                                               AND recent IS NOT NULL ORDER BY recent`;
         /*
         if(cwjy.favo == 'favorite')
@@ -198,18 +221,18 @@ function DBController (dbms) {
             query = `SELECT * FROM favorite WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}'`;
             result = await dbConnector.submitSync(query);
             if(result) {
-              console.log('visited before');
+              //console.log('visited before');
               query = `UPDATE favorite SET recent = CURRENT_TIMESTAMP 
                       WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}'`;
             }
             else {
-              console.log('newly visited');
+              //console.log('newly visited');
               query = `INSERT INTO favorite (userId, chargePointId, recent)
                       VALUES ('${cwjy.userId}', '${cpid}', CURRENT_TIMESTAMP)`;
             }
           }
           else {
-            console.log('no such chargepointid. this is wrong.');
+            console.log('logic error. no such chargepointid.');
           }
         }
         else {
@@ -279,6 +302,7 @@ function DBController (dbms) {
           query = `UPDATE evse SET booted = FROM_UNIXTIME(${now}), lastHeartbeat = FROM_UNIXTIME(${now}),
                     status = 'Available', occupyinguserid = NULL, occupyingEnd = NULL
                     WHERE evseSerial = '${cwjy.evseSerial}'`;
+          //console.log('date:' + query);
           dbConnector.submit(query);
         }
         break;
