@@ -218,6 +218,7 @@ function APIController(server) {
 
   getUserStatus = async (req, res, next) => {
     waitingJobs++;
+    console.log('headers: ' + JSON.stringify(req.headers));
     var cwjy = { action: "UserStatus", userId: req.params.user };
     var result = await connDBServer.sendAndReceive(cwjy);
     res.response = { responseCode: { type: 'page', name: 'user status' }, result: result};

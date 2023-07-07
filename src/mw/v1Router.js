@@ -3,11 +3,15 @@ const express = require('express');
 var V1RouterWrapper = function (server) {
   var router = express.Router();
   const controller = require('./apiController')(server);
+  const auth = require('./auth')();
 
   // hscan action is in one funtion
   // user related apis are divided in several functions
   // why? just for fun
   // JK. Which one looks better? which one is more efficient or productive?
+  router.post('/authentication/sendauthmail', auth.sendAuthMail, controller.writeResponse);
+  router.get('/authentication/email', auth.emailAuth, controller.writeResponse);
+
   router.put('/hscan/scan', controller.waitAndGo, controller.hScan, controller.writeResponse);
   router.put('/hscan/action', controller.waitAndGo, controller.hAction, controller.writeResponse);
 
