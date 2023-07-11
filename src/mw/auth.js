@@ -1,24 +1,28 @@
+const config = require('config');
+const smtp = config.get('smtp');
+
 const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
 
 function AuthController () {
 
   sendAuthMail = async (req, res, next) => {
     let transporter = nodemailer.createTransport({
-        service: 'gmail',
-        host: 'smtp.gmail.com',
-        port: 587,
+        service: smtp.service,
+        host: smtp.host,
+        port: smtp.port,
         secure: false,
         //requireTLS: true,
         auth: {
-            user: 'hclab.dev1@gmail.com',
-            pass: 'ifbinfhidljqadia',
+            user: smtp.user,
+            pass: smtp.pass,
         },
     });
 
     let info = await transporter.sendMail({
-        from: `"HcLab" <hclab.dev1@gmail.com>`,
-        //to: 'moon.twinhoonii@gmail.com, moon.youngh@gmail.com',
-        to: 'moon.youngh@kakao.com',
+        from: smtp.from,
+        to: 'moon.twinhoonii@gmail.com, moon.youngh@gmail.com',
+        //to: 'moon.youngh@kakao.com',
         subject: 'nangoru test 8',
         html: `<HTML> <HEAD>
                     <META HTTP-EQUIV="Cache-Control" CONTENT="no-cache, no-store">
@@ -35,16 +39,47 @@ function AuthController () {
 
   }
 
-  emailAuth = (req, res, next) => {
+  issueToken = (args) => {
+    var pk = 'hclabtest-key';
+    var token = jwt.sign({ email: args.email, name: args.name, abc: args.abc }, pk, { algorithm: 'HS256' });
+    return token;
   }
 
-  verifyUser = (req, res, next) => {
+  emailAuth = (req, res, next) => {
+    var tok = issueToken(req.params);
+    var dcded = jwt.verify(tok, 'hclabtest-key');
+    res.response = {token: tok, decoded: dcded};
+    next();
   }
-    const auth = {
-        sendAuthMail,
-        emailAuth,
-        verifyUser
-    }
+
+  /*    async issueing token. if you need asynchronous function, use this
+  issueToken = () => {
+    return new Promise((resolve, reject) => {
+      var pk = 'hclabtest-key';
+      var token = jwt.sign({ foo: 'bar' }, pk, { algorithm: 'HS256' }, function (err, token) {
+        console.log('err: ' + err);
+        resolve(token);
+        //console.log(token);
+      });
+    })
+  }
+
+  emailAuth = async (req, res, next) => {
+    res.response = await issueToken();
+    console.log(res.response);
+    next();
+  }
+  */
+
+  verifyUser = (req, res, next) => {
+    next();
+  }
+
+  const auth = {
+    sendAuthMail,
+    emailAuth,
+    verifyUser
+  }
 
     return auth;
 }

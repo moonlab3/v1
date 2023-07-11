@@ -18,11 +18,12 @@
     "charging": "/files/charging",
     "tmp": "/files/tmp"
   },
-  "mailsvr": {
+  "smtp": {
     "service": "gmail",
     "host": "smtp.gmail.com",
     "port": 587,
-    "user": "moon.lab2@gmail.com",
-    "password": "ekftnv0gns"
+    "user": "hclab.dev1@gmail.com",
+    "pass": "ifbinfhidljqadia",
+    "from": "HcLab <hclab.dev1@gmail.com>"
   }
 }

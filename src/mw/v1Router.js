@@ -10,7 +10,7 @@ var V1RouterWrapper = function (server) {
   // why? just for fun
   // JK. Which one looks better? which one is more efficient or productive?
   router.post('/authentication/sendauthmail', auth.sendAuthMail, controller.writeResponse);
-  router.get('/authentication/email', auth.emailAuth, controller.writeResponse);
+  router.get('/authentication/email/:email/:name/:abc', auth.emailAuth, controller.writeResponse);
 
   router.put('/hscan/scan', controller.waitAndGo, controller.hScan, controller.writeResponse);
   router.put('/hscan/action', controller.waitAndGo, controller.hAction, controller.writeResponse);
