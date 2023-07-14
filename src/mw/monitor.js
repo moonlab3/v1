@@ -1,7 +1,4 @@
-const SQL_HEARTBEAT_LIMIT_MMDD = 1000;
-const SQL_ANGRY_EXPIRY_MMDD = 1500;
-const SQL_FINISHING_EXPIRY_MMDD = 1000;
-const SQL_WAITING_EXPIRY_MMDD = 0;
+var constants = require('../lib/constants');
 
 function DBMonitor(dbConnector) {
   var toDBsvr;
@@ -12,7 +9,7 @@ function DBMonitor(dbConnector) {
     //////////////////////////////////////////
     // heartbeat
     query = `SELECT evseSerial, lastHeartbeat FROM evse 
-             WHERE lastHeartBeat < CURRENT_TIMESTAMP - ${SQL_HEARTBEAT_LIMIT_MMDD}` ;
+             WHERE lastHeartBeat < DATE_SUB(NOW(), INTERVAL ${constants.SQL_HEARTBEAT_LIMIT} MINUTE` ;
     result = await dbConnector.submitSync(query);
     for (var i in result) {
       // status change to faulted?
@@ -33,13 +30,13 @@ function DBMonitor(dbConnector) {
 
       switch (result[i].type) {
         case 'Angry':
-          expiryAfter = SQL_ANGRY_EXPIRY_MMDD;
+          expiryAfter = constants.SQL_ANGRY_EXPIRY;
           break;
         case 'Finishing':
-          expiryAfter = SQL_FINISHING_EXPIRY_MMDD;
+          expiryAfter = constants.SQL_FINISHING_EXPIRY;
           break;
         case 'Waiting':
-          expiryAfter = SQL_WAITING_EXPIRY_MMDD;
+          expiryAfter = constants.SQL_WAITING_EXPIRY;
           break;
       }
       query = `UPDATE notification SET expiry = FROM_UNIXTIME(${Date.now()}) / 1000 + ${expiryAfter} 

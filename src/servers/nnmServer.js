@@ -2,8 +2,6 @@ process.title = process.argv[2];
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 process.env.NODE_APP_INSTANCE = 1;
 
-const NNMSERVER_MONITORING_INTERVAL_SECS = 10;
-
 const config = require('config');
 const dbms = config.get('dbms');
 

@@ -9,8 +9,9 @@ var V1RouterWrapper = function (server) {
   // user related apis are divided in several functions
   // why? just for fun
   // JK. Which one looks better? which one is more efficient or productive?
-  router.post('/authentication/sendauthmail', auth.sendAuthMail, controller.writeResponse);
-  router.get('/authentication/email/:email/:name/:abc', auth.emailAuth, controller.writeResponse);
+  router.get('/authentication/sendauthmail/:email', auth.sendAuthMail, controller.writeResponse);
+  router.get('/authentication/email/:code', auth.emailAuth, controller.writeResponse);
+  router.get('/authentication/test/:code', auth.test, controller.writeResponse);
 
   router.put('/hscan/scan', controller.waitAndGo, controller.hScan, controller.writeResponse);
   router.put('/hscan/action', controller.waitAndGo, controller.hAction, controller.writeResponse);

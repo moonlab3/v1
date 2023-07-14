@@ -231,17 +231,18 @@ function APIController(server) {
     var result = await connDBServer.sendAndReceive(cwjy);
 
     for (var i in result) {
-      var elapsed = new Date(Date.now() - new Date(result[i].started));
-      result[i].elapsed = (elapsed.getDate() > 0) ? elapsed.getDate() + ":" : "";
-      result[i].elapsed += elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
+      var elapsed = (new Date(result[i].finished) - new Date(result[i].started)) / 1000;
+      //result[i].elapsed = (elapsed.getDate() > 0) ? elapsed.getDate() + ":" : "";
+      //result[i].elapsed += elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
+      result[i].elapsed = Math.floor(elapsed / 3600) + ":" + Math.floor((elapsed % 3600)/ 60) + ":" + elapsed % 60;
       /*
       if(elapsed.getDate() > 0)
         result[i].elapsed = elapsed.getDate() + ":" + elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
       else
         result[i].elapsed = elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
         */
-      result[i].currentSoc = result[i].bulkSoc + (result[i].meterNow - result[i].meterStart);
-      result[i].price = (result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart);
+      result[i].currentSoc = Math.ceil(result[i].bulkSoc + (result[i].meterNow - result[i].meterStart));
+      result[i].price = Math.ceil((result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart));
     }
 
     res.response = { responseCode: { type: 'page', name: 'charging status' }, result: result};

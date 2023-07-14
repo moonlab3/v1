@@ -1,6 +1,4 @@
-const EARTH_RADIUS = 6371;
-const SQL_RESERVE_DURATION_MINUTE = 15;
-//const SQL_FAVORITE_CODE_PART = 200;
+var constants = require('../lib/constants');
 
 function DBController (dbms) {
   const dbConnector = require('../tools/dbConnector')(dbms);
@@ -34,16 +32,15 @@ function DBController (dbms) {
                         FROM evsecheck WHERE occupyingUserId = '${cwjy.userId}'`;
         break;
       case 'ChargingStatus':
-        //query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
         query = `SELECT DATE_FORMAT(started, '%Y-%m-%e %H:%i:%s') as started,
                         DATE_FORMAT(finished, '%Y-%m-%e %H:%i:%s') as finished,
                         chargePointId, chargePointName, userId, evseSerial, evseNickname, bulkSoc, fullSoc, trxId,
                         meterStart, meterNow, priceHCL, priceHost
-                        FROM billstatus WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
+                        FROM viewbillplus WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
         break;
       case 'Reserve':
         query = `UPDATE evse SET status = 'Reserved', occupyingUserId = '${cwjy.userId}', 
-               occupyingEnd = DATE_ADD(NOW(), INTERVAL + ${SQL_RESERVE_DURATION_MINUTE} MINUTE)
+               occupyingEnd = DATE_ADD(NOW(), INTERVAL ${constants.SQL_RESERVE_DURATION} MINUTE)
                WHERE evseSerial = '${cwjy.evseSerial}'`;
         break;
       case 'Angry':
@@ -69,7 +66,6 @@ function DBController (dbms) {
       case 'Report':
         break;
       case 'ShowAllEVSE':
-        //query = `SELECT * FROM evsebycp WHERE chargePointId = '${cwjy.chargePointId}'`;
         query = `SELECT chargePointId, chargePointName, address, priceHCL, priceHost, priceExtra,
                         evseSerial, evseNickname, status, occupyingUserId, 
                         DATE_FORMAT(occupyingEnd, '%Y-%m-%e %H:%i:%s') as occupyingEnd, capacity, connectorId
@@ -77,25 +73,21 @@ function DBController (dbms) {
         break;
       case 'ShowAllCPbyLoc':
         var box = getBox(cwjy.lat, cwjy.lng, cwjy.rng);
-        //query = `SELECT * FROM cpbasic 
         query = `SELECT chargePointId, chargePointName, ownerId, lat, lng, locationDetail,
                         address, priceHCL, priceHost, priceExtra FROM chargepoint 
                   WHERE lat < '${box.top}' AND lat > '${box.bottom}'
                   AND lng < '${box.right}' AND lng > '${box.left}'`;
         break;
       case 'ShowAllCPbyName':
-        //query = `SELECT * FROM cpbasic
         query = `SELECT chargePointId, chargePointName, ownerId, lat, lng, locationDetail,
                         address, priceHCL, priceHost, priceExtra FROM chargepoint 
                   WHERE chargePointName LIKE '%${cwjy.name}%'`;
         break;
       case 'UserHistory':
-        //query = `SELECT * FROM billstatus WHERE userId = '${cwjy.userId}'`;
         query = `SELECT DATE_FORMAT(started, '%Y-%m-%e %H:%i:%s') as started,
                         DATE_FORMAT(finished, '%Y-%m-%e %H:%i:%s') as finished,
-                        chargePointId, chargePointName, userId, evseSerial, evseNickname, bulkSoc, fullSoc, trxId,
-                        meterStart, meterNow, priceHCL, priceHost
-                        FROM billstatus WHERE userId = '${cwjy.userId}'`;
+                        chargePointId, chargePointName, userId, evseSerial, evseNickname, trxId, totalkWh, cost 
+                        FROM viewbillplus WHERE userId = '${cwjy.userId}'`;
         break;
       case 'BootNotification':                                    
         query = `SELECT evseSerial, heartbeat FROM evse JOIN chargepoint 
@@ -143,6 +135,16 @@ function DBController (dbms) {
 
         query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${cwjy.pdu.idTag}', occupyingEnd = FROM_UNIXTIME(${est}) 
                   WHERE evseSerial = '${cwjy.evseSerial}';
+                 INSERT INTO bill (started, evseSerial, userId, bulkSoc, fullSoc, meterStart, meterNow, trxId)
+                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${cwjy.pdu.idTag}',
+                  '${cwjy.pdu.bulkSoc}', '${cwjy.pdu.fullSoc}', '${cwjy.pdu.meterStart}', 
+                  '${cwjy.pdu.meterStart}', ${cwjy.pdu.transactionId});
+                 INSERT INTO favorite (userId, chargePointId, recent)
+                  SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
+                  WHERE evseSerial = '${cwjy.evseSerial}';`;
+        /*
+        query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${cwjy.pdu.idTag}', occupyingEnd = FROM_UNIXTIME(${est}) 
+                  WHERE evseSerial = '${cwjy.evseSerial}';
                  INSERT INTO bill (started, evseSerial, userId, trxId, bulkSoc, fullSoc, meterStart, meterNow)
                   VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${cwjy.pdu.idTag}',
                   '${cwjy.pdu.transactionId}', '${cwjy.pdu.bulkSoc}', '${cwjy.pdu.fullSoc}', 
@@ -154,11 +156,11 @@ function DBController (dbms) {
                  INSERT INTO favorite (userId, chargePointId, recent)
                   SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
                   WHERE evseSerial = '${cwjy.evseSerial}';`;
+                  */
         // 1000: epoch to tiestamp
         break;
       case 'StopTransaction':
-        query = `SELECT meterStart, priceHCL, priceHost FROM bill JOIN chargepoint 
-                  ON bill.chargePointId = chargepoint.chargePointId WHERE trxId = '${cwjy.pdu.transactionId}'`;
+        query = `SELECT meterStart, priceHCL, priceHost FROM viewbillplus WHERE trxId = '${cwjy.pdu.transactionId}'`;
         result = await dbConnector.submitSync(query);
         if(!result) {
           console.log('logic error. no transaction ongoing.');
@@ -313,8 +315,8 @@ function DBController (dbms) {
   }
 
   getBox = (lat, lng, rng)  => {
-    var latPerKM = ( 1 / (EARTH_RADIUS * 1 * (Math.PI / 180))) / 1000;
-    var lngPerKM = ( 1 / (EARTH_RADIUS * 1 * (Math.PI / 180) * Math.cos(lat * Math.PI / 180))) / 1000;
+    var latPerKM = ( 1 / (constants.EARTH_RADIUS * 1 * (Math.PI / 180))) / 1000;
+    var lngPerKM = ( 1 / (constants.EARTH_RADIUS * 1 * (Math.PI / 180) * Math.cos(lat * Math.PI / 180))) / 1000;
 
     var box = { top: (parseFloat(lat) + (rng * latPerKM)), 
                 bottom: (parseFloat(lat) - (rng * latPerKM)),
@@ -324,7 +326,7 @@ function DBController (dbms) {
   }
 
   setTxCount = async() => {
-    var query = `SELECT MAX(trxId) AS max FROM billstatus;`;
+    var query = `SELECT MAX(trxId) AS max FROM bill;`;
     var result = await dbConnector.submitSync(query);
     trxCount = result[0].max + 1;
     console.log('setTxCount: ' + trxCount);

@@ -1,4 +1,4 @@
-const CONNECTION_TIMEOUT = 10 * 1000;
+var constants = require('../lib/constants');
 // websocket wrapper for charge point communication.
 
 function WebSocketWrapper(server) {
@@ -134,7 +134,7 @@ function WebSocketWrapper(server) {
         delistForwarding(destination);
         resolve(null);
         return;
-      }, CONNECTION_TIMEOUT);
+      }, constants.CONNECTION_TIMEOUT);
       enlistForwarding(destination, (result) => {
         clearTimeout(timeout);
         delistForwarding(destination);
