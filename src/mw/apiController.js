@@ -23,8 +23,8 @@ function APIController(server) {
     waitingJobs++;
     var reqToCP, resultCP;
     var cwjy = { action: "EVSECheck", userId: req.body.user, evseNickname: req.body.evse};
-    console.log(JSON.stringify(cwjy));
-    console.log(req.body);
+    //console.log(JSON.stringify(cwjy));
+    //console.log(req.body);
     var resultDB = await connDBServer.sendAndReceive(cwjy);
     if(!resultDB || !req.body.user) {
       console.log('result is null');
@@ -217,8 +217,14 @@ function APIController(server) {
   }
 
   getUserStatus = async (req, res, next) => {
+    if(req.auth == 'fail') {
+      res.response = { responseCode: { type: 'page', name: 'verification failed'}, result: [] };
+      next();
+      return;
+    }
     waitingJobs++;
-    console.log('headers: ' + JSON.stringify(req.headers));
+    //console.log('headers: ' + JSON.stringify(req.headers));
+
     var cwjy = { action: "UserStatus", userId: req.params.user };
     var result = await connDBServer.sendAndReceive(cwjy);
     res.response = { responseCode: { type: 'page', name: 'user status' }, result: result};

@@ -27,15 +27,16 @@ function DBController (dbms) {
         query = `SELECT evseSerial, status, occupyingUserId FROM evse WHERE evseNickname = '${cwjy.evseNickname}'`;
         break;
       case 'UserStatus':
-        query = `SELECT evseSerial, evseNickname, status, occupyingUserId, 
+        // evseSerial
+        query = `SELECT evseNickname, status, occupyingUserId, 
                         DATE_FORMAT(occupyingEnd, '%Y-%m-%e %H:%i:%s') as occupyingEnd, connectorId
                         FROM evsecheck WHERE occupyingUserId = '${cwjy.userId}'`;
         break;
       case 'ChargingStatus':
+        // chargePointId, userId, evseSerial, trxId, 
         query = `SELECT DATE_FORMAT(started, '%Y-%m-%e %H:%i:%s') as started,
                         DATE_FORMAT(finished, '%Y-%m-%e %H:%i:%s') as finished,
-                        chargePointId, chargePointName, userId, evseSerial, evseNickname, bulkSoc, fullSoc, trxId,
-                        meterStart, meterNow, priceHCL, priceHost
+                        chargePointName, evseNickname, bulkSoc, fullSoc, meterStart, meterNow, priceHCL, priceHost
                         FROM viewbillplus WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
         break;
       case 'Reserve':
@@ -66,6 +67,7 @@ function DBController (dbms) {
       case 'Report':
         break;
       case 'ShowAllEVSE':
+        // chargePointId
         query = `SELECT chargePointId, chargePointName, address, priceHCL, priceHost, priceExtra,
                         evseSerial, evseNickname, status, occupyingUserId, 
                         DATE_FORMAT(occupyingEnd, '%Y-%m-%e %H:%i:%s') as occupyingEnd, capacity, connectorId
@@ -84,9 +86,10 @@ function DBController (dbms) {
                   WHERE chargePointName LIKE '%${cwjy.name}%'`;
         break;
       case 'UserHistory':
+        // chargePointId, userId, evseSerial, trxId
         query = `SELECT DATE_FORMAT(started, '%Y-%m-%e %H:%i:%s') as started,
                         DATE_FORMAT(finished, '%Y-%m-%e %H:%i:%s') as finished,
-                        chargePointId, chargePointName, userId, evseSerial, evseNickname, trxId, totalkWh, cost 
+                        chargePointName, evseNickname, totalkWh, cost 
                         FROM viewbillplus WHERE userId = '${cwjy.userId}'`;
         break;
       case 'BootNotification':                                    
