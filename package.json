@@ -23,6 +23,7 @@
     "http-parser-js": "^0.5.8",
     "json2html": "^0.0.8",
     "jsonwebtoken": "^9.0.0",
+    "multer": "^1.4.5-lts.1",
     "mysql": "^2.18.1",
     "nodemailer": "^6.9.1",
     "socket.io": "^4.5.4",

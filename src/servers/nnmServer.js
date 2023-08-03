@@ -2,12 +2,16 @@ process.title = process.argv[2];
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 process.env.NODE_APP_INSTANCE = 1;
 
-const config = require('config');
-const dbms = config.get('dbms');
 
 const connDBServer = require('../tools/socketIOWrapper')('nnmServer');
+
+/*
+const config = require('config');
+const dbms = config.get('dbms');
 const dbConnector = require('../tools/dbConnector')(dbms);
 const monitor = require('../mw/monitor')(dbConnector);
+*/
+const monitor = require('../mw/monitor')();
 var monitorIns;
 
 function updateRequest(cwjy) {
@@ -19,6 +23,7 @@ function updateRequest(cwjy) {
 function init() {
   console.log('notification and monitoring server on.');
   monitor.registerSender(updateRequest);
+
   //startMonitor(60 * NNMSERVER_MONITORING_INTERVAL_SECS);
 }
 

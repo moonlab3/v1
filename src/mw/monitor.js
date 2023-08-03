@@ -1,13 +1,16 @@
 var constants = require('../lib/constants');
 
-function DBMonitor(dbConnector) {
+//function DBMonitor(dbConnector) {
+function DBMonitor() {
   var toDBsvr;
+  //var dbConnector = require('../tools/dbConnector')();
 
   async function watch() {
     var query, result, cwjy;
 
     //////////////////////////////////////////
     // heartbeat
+    /*
     query = `SELECT evseSerial, lastHeartbeat FROM evse 
              WHERE lastHeartBeat < DATE_SUB(NOW(), INTERVAL ${constants.SQL_HEARTBEAT_LIMIT} MINUTE` ;
     result = await dbConnector.submitSync(query);
@@ -55,6 +58,7 @@ function DBMonitor(dbConnector) {
                 recipientId = '${result[i].recipientId}' AND expiry = '${result[i].expiry}'`;
       dbConnector.submit(query);
     };
+    */
 
   };
 

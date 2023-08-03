@@ -1,7 +1,9 @@
 var constants = require('../lib/constants');
 
 function DBController (dbms) {
+//function DBController () {
   const dbConnector = require('../tools/dbConnector')(dbms);
+  //const dbConnector = require('../tools/dbConnector')();
   var dbSpeedAvg = 0, trxCount = 0, requestCount = 0;
 
   preProcess = (event, cwjy, callback) => {
@@ -14,6 +16,33 @@ function DBController (dbms) {
 
   nnmRequest = async (cwjy, callback) => {
 
+  }
+
+  authRequest = async (cwjy, callback) => {
+    var returnValue, query, result;
+    switch (cwjy.action) {
+      case 'AuthStatus':
+        query = `SELECT userId, authStatus FROM user WHERE email = '${cwjy.email}'`;
+        break;
+      case 'SignUp':
+        query = `UPDATE user SET password=SHA2('${cwjy.password}', 256) WHERE email = '${cwjy.email}'`;
+        break;
+      case 'Login':
+        query = `SELECT userId FROM user WHERE email = '${cwjy.email}' AND password = SHA2('${cwjy.password}', 256)`;
+        break;
+    }
+    result = await dbConnector.submitSync(query);
+
+    switch (cwjy.action) {
+      case 'AuthStatus':
+      case 'SignUp':
+      case 'Login':
+        returnValue = result;
+        break;
+    }
+
+    if(callback)
+      callback(returnValue);
   }
 
   extRequest = async (cwjy, callback) => {
@@ -213,6 +242,7 @@ function DBController (dbms) {
       case 'NewUserFavo':
         if(cwjy.favo == 'favorite') {
           query = `SELECT MAX(favoriteOrder) AS max FROM favorite WHERE userId = '${cwjy.userId}'`;
+          console.log(query);
           result = await dbConnector.submitSync(query);
           var order = result ? result[0].max + 1 : 1;
           query = `INSERT INTO favorite (userId, chargePointId, favoriteOrder)
@@ -340,6 +370,7 @@ function DBController (dbms) {
     showPerformance,
     extRequest,
     nnmRequest,
+    authRequest,
     setTxCount
   }
 

@@ -1,7 +1,11 @@
 
+// with multi process, same pool.
+// have to go through db server socket.io
+//var myPool;
 function DBConnector(dbms) {
+//function DBConnector() {
   var trxCount = 0, dbSpeedAvg = 0;
-  const myPool = require('mysql').createPool({
+  var myPool = require('mysql').createPool({
     port: dbms.port,
     host: dbms.host,
     user: dbms.user,
@@ -11,19 +15,9 @@ function DBConnector(dbms) {
   });
 
   /*
-  const dbConn = require('mysql').createConnection({
-    port: dbms.port,
-    host: dbms.host,
-    user: dbms.user,
-    password: dbms.password,
-    multipleStatements: true,
-    database: dbms.database
-  });
-
-  dbConn.connect((err) => {
-    if (err) throw err;
-    console.error(`dbConnector:init: mySQL connected. ${new Date(Date.now())} port: ${dbms.port}`);
-  });
+  setPool = (pool) => {
+    myPool = pool;
+  }
   */
 
   // query submit without return
@@ -67,6 +61,7 @@ function DBConnector(dbms) {
   }
 
   const dbConnector = {
+    //setPool,
     submit,
     submitSync
   }

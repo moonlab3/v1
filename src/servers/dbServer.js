@@ -12,6 +12,18 @@ const dbServer = config.get('dbserver');
 const dbms = config.get('dbms');
 
 const controller = require('../mw/logics')(dbms);
+/*
+const dbConnector = require('../tools/dbConnector')();
+const myPool = require('mysql').createPool({
+  port: dbms.port,
+  host: dbms.host,
+  user: dbms.user,
+  password: dbms.password,
+  multipleStatements: true,
+  database: dbms.database
+});
+*/
+
 //const csmsController = require('../mw/csmsLogics')(dbms);
 //const mailer = require('./tools/mail');
 
@@ -34,6 +46,14 @@ io.of('nnmServer').on('connection', (socket) => {
   socket.on('cwjy', controller.nnmRequest);
 });
 
+io.of('auth').on('connection', (socket) => {
+  console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
+
+  socket.onAny(controller.preProcess);
+  socket.on('cwjy', controller.authRequest);
+
+});
+
 /*
 io.of('csmsServer').on('connection', (socket) => {
   console.log(`dbServer: connected with ${socket.nsp.name}. ${new Date(Date.now())}`);
@@ -44,9 +64,9 @@ io.of('csmsServer').on('connection', (socket) => {
 */
 
 server.listen(dbServer.port, ()=> {
-  // DB server initiation. setTxCount is for transaction ID(number)
+  //dbConnector.setPool(myPool);
+
   console.log(`DB server on. ${new Date(Date.now())} port: ${dbServer.port} `);
   controller.setTxCount();
-
   //mailer.init(config.mailsvr);
 });

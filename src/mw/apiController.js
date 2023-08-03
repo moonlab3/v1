@@ -6,6 +6,7 @@ function APIController(server) {
   var waitingJobs = 0;
   var lockArray = [];
   const { v1: uuidv1, v4: uuidv4, } = require('uuid');
+  const fs = require('fs');
 
   waitAndGo = (req, res, next) => {
     var index = lockArray.findIndex(item => item == req.body.evse);
@@ -178,15 +179,6 @@ function APIController(server) {
           response = (result.pdu.status == 'Accepted')
                      ? { responseCode: { type: 'page', name: 'charging canceled'}, result: [{ status: 'Finishing'}]}
                      : { responseCode: { type: 'error', name: 'evse problem'}};
-          /*
-          if (result.pdu.status == 'Accepted') {
-            response = { responseCode: { type: 'page', name: 'charging canceled'}, result: [{ status: 'Finishing'}]};
-          }
-          else {
-            // EVSE says no
-            response.responseCode = { type: 'error', name: 'evse problem' };
-          }
-          */
         }
         else {
           response.responseCode = { type: 'error', name: 'temporarily unavailable' };
@@ -203,12 +195,6 @@ function APIController(server) {
         result = await connDBServer.sendAndReceive(cwjy);
         console.log('angry: ' + result);
         response.responseCode = (result) ? { type: 'toast', name: 'angry ok' } : { type: 'toast', name: 'angry done' };
-        /*
-        if (result)
-          response.responseCode = { type: 'toast', name: 'angry ok' };
-        else
-          response.responseCode = { type: 'toast', name: 'angry done already' };
-        */
         break;
     }
 
@@ -223,7 +209,6 @@ function APIController(server) {
       return;
     }
     waitingJobs++;
-    //console.log('headers: ' + JSON.stringify(req.headers));
 
     var cwjy = { action: "UserStatus", userId: req.params.user };
     var result = await connDBServer.sendAndReceive(cwjy);
@@ -261,12 +246,6 @@ function APIController(server) {
     var result = await connDBServer.sendAndReceive(cwjy);
     res.response = (!result) ? { responseCode: { type: 'error', name: 'wrong parameters' }, result: []}
                              : { responseCode: { type: 'page', name: 'user history' }, result: result };
-    /*
-    if(!result)
-      res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: []};
-    else
-      res.response = { responseCode: { type: 'page', name: 'user history' }, result: result };
-      */
 
     next();
   }
@@ -277,13 +256,6 @@ function APIController(server) {
     var result = await connDBServer.sendAndReceive(cwjy);
     res.response = (!result) ? { responseCode: { type: 'error', name: 'wrong parameters' }, result: [] }
                              : { responseCode: { type: 'page', name: 'recently visited' }, result: result };
-    /*
-    if(!result)
-      res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: []};
-    else
-      res.response = { responseCode: { type: 'page', name: 'recently visited' }, result: result };
-      */
-
     next();
   }
   getUserFavo = async (req, res, next) => {
@@ -292,12 +264,6 @@ function APIController(server) {
     var result = await connDBServer.sendAndReceive(cwjy);
     res.response = (!result) ? { responseCode: { type: 'error', name: 'wrong parameters' }, result: [] }
                              : { responseCode: { type: 'page', name: 'user favorite' }, result: result };
-    /*
-    if(!result)
-      res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: []};
-    else
-      res.response = { responseCode: { type: 'page', name: 'user favorite' }, result: result };
-      */
 
     next();
   }
@@ -315,13 +281,6 @@ function APIController(server) {
 
     res.response = (!result) ? { responseCode: { type: 'popup', name: 'already done' }, result: [] }
                              : { responseCode: { type: 'popup', name: 'add ok' }, result: [] };
-    /*
-    if(!result)
-      res.response = { responseCode: { type: 'popup', name: 'already done' }, result: []};
-    else
-      res.response = { responseCode: { type: 'popup', name: 'add ok' }, result: [] };
-      */
-
     next();
   }
 
@@ -365,11 +324,15 @@ function APIController(server) {
   postDamageReport = (req, res, next) => {
     //////////////////////////////////////////////
     // images, writings
+    /*
     cwjy = { action: 'Report', evseSerial: req.params.evse };
     result = connDBServer.sendOnly(cwjy);
-    response.responseCode = { responseCode: { type: 'popup', name: 'report ok' }, result: [] };
+    */
+   
+    fs.renameSync(req.file.path, './uploads/' + req.file.originalname);
+    console.log(JSON.stringify(req.file));
 
-    res.response = response;
+    res.response = { responseCode: { type: 'popup', name: 'ok'}, result: [] };
     next();
   }
 
@@ -424,16 +387,25 @@ function APIController(server) {
     
   }
 
-  csmsBasic = (req, res, next) => {
-    console.log('/host');
+  csmsListCP = async (req, res, next) => {
+    if (!req.query.host) {
+      res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: []};
+      next();
+      return;
+    }
+
+    var cwjy = { action: 'cpList', ownerId: req.query.userId };
+    var result = await connDBServer.sendAndReceive(cwjy);
+    res.response = { responseCode: { type: 'page', name: 'cp list' }, result: result};
+    next();
+      
+  }
+  csmsListEVSE = (req, res, next) => {
   }
 
-  csmsReport = (req, res, next) => {
-    console.log('/host/report');
+  csmsHistoryCP = (req, res, next) => {
   }
-
-  csmsControl = (req, res, next) => {
-    console.log('/host/:userId' + req.params.userId);
+  csmsHistoryEVSE = (req, res, next) => {
   }
 
 
@@ -511,9 +483,10 @@ function APIController(server) {
     evseBoot,
     evseRequest,
     evseResponse,
-    csmsBasic,
-    csmsReport,
-    csmsControl,
+    csmsListCP,
+    csmsListEVSE,
+    csmsHistoryCP,
+    csmsHistoryEVSE,
     writeResponse
   }
 
