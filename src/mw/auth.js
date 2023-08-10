@@ -10,8 +10,6 @@ const jwt = require('jsonwebtoken');
 const uaparser = require('ua-parser-js');
 
 function AuthController () {
-  //const dbms = config.get('dbms');
-  //const dbConnector = require('../tools/dbConnector')(dbms);
   var pk = service.privatekey;
   var authList = [];
 
@@ -66,12 +64,6 @@ function AuthController () {
   emailAuthStatus = async (req, res, next) => {
     var cwjy = { action: "AuthStatus", email: req.params.email};
     var resultDB = await connDBServer.sendAndReceive(cwjy);
-    /*
-    var result = await dbConnector.submitSync(`SELECT authStatus FROM user WHERE email = '${req.params.email}'`);
-    res.response = (result) ? 
-            { responseCode: { type: 'page', name: 'verification' }, result: [{ status: result[0].authStatus }] } :
-            { responseCode: { type: 'error', name: 'verification' }, result: [{ status: 'not found' }] };
-            */
     res.response = (resultDB) ? 
             { responseCode: { type: 'page', name: 'verification' }, result: [{ status: resultDB[0].authStatus }] } :
             { responseCode: { type: 'error', name: 'verification' }, result: [{ status: 'not found' }] };
@@ -82,7 +74,6 @@ function AuthController () {
   signup = (req, res, next) => {
     var cwjy = { action: "SignUp", email: req.body.email, password: req.body.password};
     connDBServer.sendOnly(cwjy);
-    //dbConnector.submit(`UPDATE user SET password=SHA2('${req.body.password}', 256) WHERE email = '${req.body.email}'`);
   }
 
   sendAuthPhone = (req, res, next) => {
@@ -123,8 +114,6 @@ function AuthController () {
 
 
   login = async (req, res, next) => {
-    //var query = `SELECT userId FROM user WHERE email='${req.body.email}' AND password=SHA2('${req.body.password}', 256)`;
-    //var result = await dbConnector.submitSync(query);
     var cwjy = { action: 'Login', email: req.body.email, password: req.body.password };
     var result = await connDBServer.sendAndReceive(cwjy);
     var token = jwt.sign({ email: '${req.body.email}', exp: Date.now() }, pk, { algorithm: 'HS256'});
@@ -168,7 +157,6 @@ function AuthController () {
 
   // for test
   getToken = async (req, res, next) => {
-    //var result = await dbConnector.submitSync(`SELECT userId FROM user WHERE email = '${req.params.test}'`);
     var cwjy = { action: 'AuthStatus', email: req.params.test };
     var result = await connDBServer.sendAndReceive(cwjy);
     if(!result) {
@@ -193,7 +181,7 @@ function AuthController () {
       var decode = jwt.verify(token[1], pk);
     } catch (e) {
       console.log('verification failed: ' + e);
-      res.json({ responseCode: { type: 'error', name: 'wrong token'}, result: [] });
+      res.json({ responseCode: { type: 'error re-login', name: 'wrong token'}, result: [] });
       return;
     }
 

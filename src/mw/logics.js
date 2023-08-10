@@ -153,8 +153,6 @@ function DBController (dbms) {
                   WHERE evseSerial = '${cwjy.evseSerial}';
                  UPDATE bill set meterNow = '${kwh}'
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
-        //console.log('metermeter: ' + JSON.stringify(cwjy.pdu));
-        //console.log('metermeter: ' + query);
         break;
       case 'StartTransaction':
         cwjy.pdu.transactionId = trxCount++;
@@ -175,6 +173,7 @@ function DBController (dbms) {
                   SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
                   WHERE evseSerial = '${cwjy.evseSerial}';`;
         /*
+        // don't need. viewbillplus can hold the information
         query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${cwjy.pdu.idTag}', occupyingEnd = FROM_UNIXTIME(${est}) 
                   WHERE evseSerial = '${cwjy.evseSerial}';
                  INSERT INTO bill (started, evseSerial, userId, trxId, bulkSoc, fullSoc, meterStart, meterNow)
@@ -195,7 +194,8 @@ function DBController (dbms) {
         query = `SELECT meterStart, priceHCL, priceHost FROM viewbillplus WHERE trxId = '${cwjy.pdu.transactionId}'`;
         result = await dbConnector.submitSync(query);
         if(!result) {
-          console.log('logic error. no transaction ongoing.');
+          console.warn('no transaction ongoing.');
+          //console.log('logic error. no transaction ongoing.');
           query = '';
           break;
         }
@@ -213,14 +213,6 @@ function DBController (dbms) {
                                   WHERE evseSerial = '${cwjy.evseSerial}'`
                               : `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = NULL, occupyingEnd = NULL
                                   WHERE evseSerial = '${cwjy.evseSerial}'`;
-        /*
-        if (cwjy.userId)
-          query = `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = '${cwjy.userId}'
-                    WHERE evseSerial = '${cwjy.evseSerial}'`;
-        else
-          query = `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = NULL, occupyingEnd = NULL
-                    WHERE evseSerial = '${cwjy.evseSerial}'`;
-        */
         break;
       case 'GetUserFavo':
         query = (cwjy.favo == 'favorite') ? `SELECT chargePointName, chargePointId, userId, favoriteOrder
@@ -230,19 +222,10 @@ function DBController (dbms) {
                                               DATE_FORMAT(recent, '%Y-%m-%e %H:%i:%s') as recent
                                               FROM favoriteinfos WHERE userId = '${cwjy.userId}'
                                               AND recent IS NOT NULL ORDER BY recent`;
-        /*
-        if(cwjy.favo == 'favorite')
-          query = `SELECT * FROM favoriteinfos WHERE userId = '${cwjy.userId}' AND favoriteOrder IS NOT NULL
-                    ORDER BY favoriteOrder`;
-        else if(cwjy.favo == 'recent')
-          query = `SELECT * FROM favoriteinfos WHERE userId = '${cwjy.userId}' AND recent IS NOT NULL
-                    ORDER BY recent`;
-                    */
         break;
       case 'NewUserFavo':
         if(cwjy.favo == 'favorite') {
           query = `SELECT MAX(favoriteOrder) AS max FROM favorite WHERE userId = '${cwjy.userId}'`;
-          console.log(query);
           result = await dbConnector.submitSync(query);
           var order = result ? result[0].max + 1 : 1;
           query = `INSERT INTO favorite (userId, chargePointId, favoriteOrder)
@@ -255,19 +238,23 @@ function DBController (dbms) {
           if(cpid) {
             query = `SELECT * FROM favorite WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}'`;
             result = await dbConnector.submitSync(query);
+            result = (result) ? `UPDATE favorite SET recent = CURRENT_TIMESTAMP
+                                  WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}'`
+                              : `INSERT INTO favorite (userId, chargePointId, recent)
+                                  VALUES ('${cwjy.userId}', '${cpid}', CURRENT_TIMESTAMP)`;
+            /*
             if(result) {
-              //console.log('visited before');
               query = `UPDATE favorite SET recent = CURRENT_TIMESTAMP 
                       WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}'`;
             }
             else {
-              //console.log('newly visited');
               query = `INSERT INTO favorite (userId, chargePointId, recent)
                       VALUES ('${cwjy.userId}', '${cpid}', CURRENT_TIMESTAMP)`;
             }
+            */
           }
           else {
-            console.log('logic error. no such chargepointid.');
+            console.warn('logic error. no such chargepointid.');
           }
         }
         else {
@@ -309,13 +296,8 @@ function DBController (dbms) {
           returnValue = result;
         break;
       case 'Authorize':     
-        returnValue = (!result) ? { idTagInfo: { status: 'Invalid' } } : { idTagInfo: { status: result[0].authStatus } };
-        /*
-        if(!result)
-          returnValue = { idTagInfo: { status: 'Invalid' } };
-        else
-          returnValue = { idTagInfo: { status: result[0].authStatus } };
-        */
+        returnValue = (!result) ? { idTagInfo: { status: 'Invalid' } } 
+                                : { idTagInfo: { status: result[0].authStatus } };
         break;
       case 'Heartbeat':
         returnValue = { currentTime: Date.now() };
@@ -337,7 +319,6 @@ function DBController (dbms) {
           query = `UPDATE evse SET booted = FROM_UNIXTIME(${now}), lastHeartbeat = FROM_UNIXTIME(${now}),
                     status = 'Available', occupyinguserid = NULL, occupyingEnd = NULL
                     WHERE evseSerial = '${cwjy.evseSerial}'`;
-          //console.log('date:' + query);
           dbConnector.submit(query);
         }
         break;
@@ -362,7 +343,7 @@ function DBController (dbms) {
     var query = `SELECT MAX(trxId) AS max FROM bill;`;
     var result = await dbConnector.submitSync(query);
     trxCount = result[0].max + 1;
-    console.log('setTxCount: ' + trxCount);
+    console.debug('setTxCount: ' + trxCount);
   }
 
   const dbController = {

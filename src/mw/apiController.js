@@ -28,7 +28,7 @@ function APIController(server) {
     //console.log(req.body);
     var resultDB = await connDBServer.sendAndReceive(cwjy);
     if(!resultDB || !req.body.user) {
-      console.log('result is null');
+      console.warn('result is null');
       res.response = { responseCode: { type: 'error', name: 'no data'}, result: [] };
       next();
       return;

@@ -24,10 +24,9 @@ function DBConnector(dbms) {
   submit = (query) => {
     if (!query)
       return;
-    //dbConn.query(query, (err, res) => {
     myPool.query(query, (err, res) => {
       if(err) {
-        console.log('dbConnector:submit: ' + err);
+        console.error('dbConnector:submit: ' + err);
       }
     });
   }
@@ -38,10 +37,9 @@ function DBConnector(dbms) {
       return null;
     return new Promise((resolve, reject) => {
       var start = Date.now();
-      //dbConn.query(query, (err, res) => {
       myPool.query(query, (err, res) => {
         if (err) {
-          console.log('dbConnector:submitSync: ' + err);
+          console.error('dbConnector:submitSync: ' + err);
           resolve(null);
           return;
         }
@@ -49,7 +47,7 @@ function DBConnector(dbms) {
         trxCount++;
         dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
 
-        console.log(`query: ${query}\n result: ${JSON.stringify(res)}`);
+        console.debug(`${new Date()}\n query: ${query}\n result: ${JSON.stringify(res)}`);
         if(res.length > 0)
           resolve(res);
         else if(res.length == undefined)
