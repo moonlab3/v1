@@ -1,12 +1,21 @@
 var constants = require('../lib/constants');
 
-//function DBMonitor(dbConnector) {
-function DBMonitor() {
-  var toDBsvr;
-  //var dbConnector = require('../tools/dbConnector')();
+function DBMonitor(dbms) {
+  var dbConnector = require('../tools/dbConnector')(dbms);
 
   async function watch() {
-    var query, result, cwjy;
+    console.log('monitor started');
+    var query, result, cwjy, r2;
+
+    query = `SELECT chargePointId FROM chargepoint`;
+    result = await dbConnector.submitSync(query);
+    for (var i in result) {
+      query = `SELECT COUNT(*) AS cnt FROM evse
+               WHERE chargePointId = '${result[i].chargePointId}' AND status = 'Available'`;
+      r2 = await dbConnector.submitSync(query);
+      query = `UPDATE chargepoint SET avails = ${r2[0].cnt} WHERE chargePointId = '${result[i].chargePointId}'`;
+      dbConnector.submitSync(query);
+    }
 
     //////////////////////////////////////////
     // heartbeat

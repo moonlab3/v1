@@ -1,59 +1,4 @@
 const json2html  = require('json2html');
-/*
-hscan/ hscanaction error
-no evsenickname
-
-what to add
-
-done done done done done done done done done
-chargepoint information screen showallevse
-- address, favorite yes/no, 
--  evse information: capacity, price, priceExtra, location detail, coordination
-done done done done done done done done done
- 
-cp list information: favorite list screen getuserfavo
-- cp information: capacity, number of available, parking condition
-
-////////////favorite add/delete
-
-push, marketing, email subscription yes/no
-
-legal information api
-- yakgwan, etc
-
-card registration, change card inforamtion
-
-done done done done done done done done done
-????? done ????? charging history 
-- cost, charged amount, date format 00-00
-- remove all null. put 0
-done done done done done done done done done
-
-post damage report
-- make it
-
-ask modakmodak
-ask modakmodak
-ask modakmodak
-charging screen battery information
-- when no information
-csms schedule
-done done done done done done done done done
-
-ask hchargelab
-ask hchargelab
-ask hchargelab
-charging information
-- tax 10%, cost without tax
-personal information
-- name. there's no input box for name
-done done done done done done done done done
-
-send reciept button on charging history?
-done done done done done done done done done
- 
-*/
-
 
 function APIController(server) {
   const connDBServer = require('../tools/socketIOWrapper')('apiServer');
@@ -358,11 +303,11 @@ function APIController(server) {
       next();
       return;
     }
-    var result = await connDBServer.sendAndReceive(cwjy);
-    //res.response = { responseCode: { type: 'page', name: 'cp info' }, result: result };
+    var evses = await connDBServer.sendAndReceive(cwjy);
+    var cp = await connDBServer.sendAndReceive({ action: 'GetCPDetail', chargePointId: req.params.cp});
     var yn = await connDBServer.sendAndReceive({ action: 'IsFavorite', chargePointId: req.params.cp, userId: req.params.user});
-    res.response = (yn) ? { responseCode: { type: 'page', name: 'cp info' }, chargePoint: yn, result: result, favorite: 'yes' }
-                        : { responseCode: { type: 'page', name: 'cp info' }, chargePoint: yn, result: result, favorite: 'no' };
+    res.response = (yn) ? { responseCode: { type: 'page', name: 'cp info' }, chargePoint: cp, result: evses, favorite: 'yes' }
+                        : { responseCode: { type: 'page', name: 'cp info' }, chargePoint: cp, result: evses, favorite: 'no' };
 
     next();
   }

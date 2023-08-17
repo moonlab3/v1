@@ -5,13 +5,10 @@ process.env.NODE_APP_INSTANCE = 1;
 
 const connDBServer = require('../tools/socketIOWrapper')('nnmServer');
 
-/*
+var constants = require('../lib/constants');
 const config = require('config');
 const dbms = config.get('dbms');
-const dbConnector = require('../tools/dbConnector')(dbms);
-const monitor = require('../mw/monitor')(dbConnector);
-*/
-const monitor = require('../mw/monitor')();
+const monitor = require('../mw/monitor')(dbms);
 var monitorIns;
 
 function updateRequest(cwjy) {
@@ -24,7 +21,7 @@ function init() {
   console.log('notification and monitoring server on.');
   monitor.registerSender(updateRequest);
 
-  //startMonitor(60 * NNMSERVER_MONITORING_INTERVAL_SECS);
+  startMonitor(60 * constants.NNMSVR_MONITORING_INTERVAL_MIN);
 }
 
 function stopMonitor() {

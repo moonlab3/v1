@@ -109,14 +109,14 @@ function DBController (dbms) {
       case 'ShowAllCPbyLoc':
         var box = getBox(cwjy.lat, cwjy.lng, cwjy.rng);
         query = `SELECT chargePointId, chargePointName, ownerId, lat, lng, locationDetail,
-                        address, priceHCL, priceHost, priceExtra 
+                        address, priceHCL, priceHost, priceExtra, evses, avails
                   FROM chargepoint 
                   WHERE lat < '${box.top}' AND lat > '${box.bottom}'
                   AND lng < '${box.right}' AND lng > '${box.left}'`;
         break;
       case 'ShowAllCPbyName':
         query = `SELECT chargePointId, chargePointName, ownerId, lat, lng, locationDetail,
-                        address, priceHCL, priceHost, priceExtra 
+                        address, priceHCL, priceHost, priceExtra, evses, avails
                   FROM chargepoint 
                   WHERE chargePointName LIKE '%${cwjy.name}%'`;
         break;
@@ -225,17 +225,15 @@ function DBController (dbms) {
                               : `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = NULL, occupyingEnd = NULL
                                   WHERE evseSerial = '${cwjy.evseSerial}'`;
         break;
+      case 'GetCPDetail':
+        query = `SELECT chargePointName, chargePointId,  address, locationDetail, lat, lng,
+                        priceHCL, priceHost, priceExtra, parkingCondition, evses, avails
+                 FROM chargepoint
+                 WHERE chargePointId = '${cwjy.chargePointId}'`;
+        break;
       case 'IsFavorite':
-        /*
-        query = `SELECT c.chargePointName AS chargePointName, c.chargePointId AS chargePointId,
-                        c.address AS address, c.locationDetail AS locationDetail, c.lat AS lat, c.lng AS lng,
-                        c.priceHCL AS priceHCL, c.priceHost AS priceHost, c.priceExtra AS priceExtra,
-                        c.parkingCondition `
-                        */
-        query = `SELECT chargePointName, c.chargePointId AS chargePointId, address, locationDetail, lat, lng,
-                        priceHCL, priceHost, priceExtra, parkingCondition 
-                 FROM chargepoint c JOIN favorite f ON c.chargePointId = f.chargePointId
-                 WHERE f.userId = '${cwjy.userId}' AND f.chargePointId = '${cwjy.chargePointId}'`;
+        query = `SELECT COUNT(*) FROM favorite
+                 WHERE userId = '${cwjy.userId}' AND chargePointId = '${cwjy.chargePointId}'`;
         break;
       case 'GetUserFavo':
         /*
@@ -250,7 +248,7 @@ function DBController (dbms) {
         query = (cwjy.favo == 'favorite') ? `SELECT c.chargePointName AS chargePointName, f.chargePointId AS chargePointId,
                                                     f.favoriteOrder AS favoriteOrder, c.priceHCL AS priceHCL,
                                                     c.priceHost AS priceHost, c.priceExtra AS priceExtra,
-                                                    c.parkingCondition AS parkingCondition
+                                                    c.parkingCondition AS parkingCondition, c.avails AS avails
                                               FROM favorite f JOIN chargepoint c ON f.chargePointId = c.chargePointId
                                               WHERE userId = '${cwjy.userId}'
                                               AND favoriteOrder IS NOT NULL ORDER BY favoriteOrder`
@@ -258,7 +256,7 @@ function DBController (dbms) {
                                                     f.favoriteOrder AS favoriteOrder, c.priceHCL AS priceHCL,
                                                     c.priceHost AS priceHost, c.priceExtra AS priceExtra,
                                                     c.parkingCondition AS parkingCondition,
-                                              DATE_FORMAT(recent, '%Y-%m-%d %H:%i:%s') as recent
+                                              DATE_FORMAT(recent, '%Y-%m-%d %H:%i:%s') as recent, c.avails AS avails
                                               FROM favorite f JOIN chargepoint c ON f.chargePointId = c.chargePointId
                                               WHERE userId = '${cwjy.userId}'
                                               AND recent IS NOT NULL ORDER BY recent`;
