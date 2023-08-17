@@ -25,8 +25,6 @@ var V1RouterWrapper = function (server) {
   ///////////////////////////////////////////
   router.get('/signup/test/:code', auth.test, controller.writeResponse);
   router.get('/token/:test', auth.getToken, controller.writeResponse);
-  router.put('/hscan/scan', controller.waitAndGo, controller.hScan, controller.writeResponse);
-  router.put('/hscan/action', controller.waitAndGo, controller.hAction, controller.writeResponse);
   router.get('/user/status/:user', controller.getUserStatus, controller.writeResponse); // parameters: userid
   router.get('/user/chargingstatus/:user', controller.getUserChargingStatus, controller.writeResponse); // parameters: userid
   router.get('/user/history/:user', controller.getUserChargingHistory, controller.writeResponse);       // parameters: userid, from-date, to-date
@@ -34,6 +32,7 @@ var V1RouterWrapper = function (server) {
   router.get('/user/recent/:user', controller.getUserRecent, controller.writeResponse);                 // parameters: userid
   router.get('/chargepointlist', controller.getChargePointList, controller.writeResponse);            // parameters: chargepointid or set of (lat, lng, rng)
   router.get('/chargepoint/:cp', controller.getChargePointInfo, controller.writeResponse);            // parameters: chargepointid or set of (lat, lng, rng)
+  router.get('/chargepoint/:cp/:user', controller.getChargePointInfo, controller.writeResponse);            // parameters: chargepointid or set of (lat, lng, rng)
   router.post('/user/favorite', controller.newUserFavo, controller.writeResponse);                 // parameters: userid
   router.delete('/user/favorite', controller.delUserFavo, controller.writeResponse);
 
@@ -46,8 +45,10 @@ var V1RouterWrapper = function (server) {
 
   //
 
-  router.put('/hscan/scan', controller.waitAndGo, auth.verify, controller.hScan, controller.writeResponse);
-  router.put('/hscan/action', controller.waitAndGo, auth.verify, controller.hAction, controller.writeResponse);
+  router.put('/hscan/scan', controller.waitAndGo, controller.hScan, controller.writeResponse);
+  router.put('/hscan/action', controller.waitAndGo, controller.hAction, controller.writeResponse);
+  //router.put('/hscan/scan', controller.waitAndGo, auth.verify, controller.hScan, controller.writeResponse);
+  //router.put('/hscan/action', controller.waitAndGo, auth.verify, controller.hAction, controller.writeResponse);
 
   //router.post('/hscan/report/:evse', controller.postDamageReport, controller.writeResponse);
   //router.post('/hscan/report/:evse', upload.array('photos', 5), controller.postDamageReport, controller.writeResponse);

@@ -35,6 +35,7 @@ function DBConnector(dbms) {
   submitSync = (query) => {   
     if (!query)
       return null;
+    //console.log('query: ' + query);
     return new Promise((resolve, reject) => {
       var start = Date.now();
       myPool.query(query, (err, res) => {

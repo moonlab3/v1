@@ -1,4 +1,59 @@
 const json2html  = require('json2html');
+/*
+hscan/ hscanaction error
+no evsenickname
+
+what to add
+
+done done done done done done done done done
+chargepoint information screen showallevse
+- address, favorite yes/no, 
+-  evse information: capacity, price, priceExtra, location detail, coordination
+done done done done done done done done done
+ 
+cp list information: favorite list screen getuserfavo
+- cp information: capacity, number of available, parking condition
+
+////////////favorite add/delete
+
+push, marketing, email subscription yes/no
+
+legal information api
+- yakgwan, etc
+
+card registration, change card inforamtion
+
+done done done done done done done done done
+????? done ????? charging history 
+- cost, charged amount, date format 00-00
+- remove all null. put 0
+done done done done done done done done done
+
+post damage report
+- make it
+
+ask modakmodak
+ask modakmodak
+ask modakmodak
+charging screen battery information
+- when no information
+csms schedule
+done done done done done done done done done
+
+ask hchargelab
+ask hchargelab
+ask hchargelab
+charging information
+- tax 10%, cost without tax
+personal information
+- name. there's no input box for name
+done done done done done done done done done
+
+send reciept button on charging history?
+done done done done done done done done done
+ 
+*/
+
 
 function APIController(server) {
   const connDBServer = require('../tools/socketIOWrapper')('apiServer');
@@ -26,6 +81,7 @@ function APIController(server) {
     var cwjy = { action: "EVSECheck", userId: req.body.user, evseNickname: req.body.evse};
     //console.log(JSON.stringify(cwjy));
     //console.log(req.body);
+    console.log('req.body: ' + JSON.stringify(req.body));
     var resultDB = await connDBServer.sendAndReceive(cwjy);
     if(!resultDB || !req.body.user) {
       console.warn('result is null');
@@ -254,7 +310,7 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "GetUserFavo", userId: req.params.user, favo: 'recent'};
     var result = await connDBServer.sendAndReceive(cwjy);
-    res.response = (!result) ? { responseCode: { type: 'error', name: 'wrong parameters' }, result: [] }
+    res.response = (!result) ? { responseCode: { type: 'page', name: 'no records' }, result: [] }
                              : { responseCode: { type: 'page', name: 'recently visited' }, result: result };
     next();
   }
@@ -262,7 +318,7 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "GetUserFavo", userId: req.params.user, favo: 'favorite'};
     var result = await connDBServer.sendAndReceive(cwjy);
-    res.response = (!result) ? { responseCode: { type: 'error', name: 'wrong parameters' }, result: [] }
+    res.response = (!result) ? { responseCode: { type: 'page', name: 'no records' }, result: [] }
                              : { responseCode: { type: 'page', name: 'user favorite' }, result: result };
 
     next();
@@ -284,9 +340,13 @@ function APIController(server) {
     next();
   }
 
-  delUserFavo = async (req, res, next) => {
-
+  delUserFavo = (req, res, next) => {
+    var cwjy = { action: "DelUserFavo", userId: req.body.user, chargePointId: req.body.cp, favo: 'favorite'};
+    connDBServer.sendAndReceive(cwjy);
+    res.response = { responseCode: { type: 'popup', name: 'delete ok' }, result: [] };
+    next();
   }
+
   getChargePointInfo = async (req, res, next) => {
     waitingJobs++;
     var cwjy;
@@ -299,7 +359,11 @@ function APIController(server) {
       return;
     }
     var result = await connDBServer.sendAndReceive(cwjy);
-    res.response = { responseCode: { type: 'page', name: 'cp info' }, result: result};
+    //res.response = { responseCode: { type: 'page', name: 'cp info' }, result: result };
+    var yn = await connDBServer.sendAndReceive({ action: 'IsFavorite', chargePointId: req.params.cp, userId: req.params.user});
+    res.response = (yn) ? { responseCode: { type: 'page', name: 'cp info' }, chargePoint: yn, result: result, favorite: 'yes' }
+                        : { responseCode: { type: 'page', name: 'cp info' }, chargePoint: yn, result: result, favorite: 'no' };
+
     next();
   }
 
@@ -322,6 +386,7 @@ function APIController(server) {
   }
 
   postDamageReport = (req, res, next) => {
+    // evse nickname
     //////////////////////////////////////////////
     // images, writings
     /*
