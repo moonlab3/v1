@@ -1,5 +1,11 @@
 var constants = require('../lib/constants');
 // websocket wrapper for charge point communication.
+const http = require('http');
+const ws = http.createServer();
+
+ws.listen(3003, () => {
+  console.log('ws server opened');
+});
 
 function WebSocketWrapper(server) {
   const WebSocketServer = require('websocket').server;
@@ -8,11 +14,13 @@ function WebSocketWrapper(server) {
   var forwardingArray = [];
 
   wss = new WebSocketServer({
-    httpServer: server,
+    //httpServer: server,
+    httpServer: ws,
     autoAcceptConnections: false
   });
 
   wss.on('request', function (request) {
+    console.log('websocket request' + JSON.stringify(request));
     try {
       var connection = request.accept('hclab-protocol');
     } catch (e) {

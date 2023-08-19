@@ -31,15 +31,18 @@ function init() {
   }
 
   if(target == 'local') {
-    url = 'wss://127.0.0.1:3001/' + evseser;
+    //url = 'wss://127.0.0.1:3001/' + evseser;
+    url = 'ws://127.0.0.1:3003/' + evseser;
     //client.connect('wss://127.0.0.1:3001/', 'hclab-protocol', evseser);
   }
   else if(target == 'aws') {
-    url = 'wss://34.207.158.106:3001/' + evseser;
+    //url = 'wss://34.207.158.106:3001/' + evseser;
+    url = 'ws://34.207.158.106:3003/' + evseser;
     //client.connect('wss://34.207.158.106:3001/', 'hclab-protocol', evseser);
   }
   else if (target == 'mac') {
-    url = 'wss://10.20.20.28:3001/' + evseser;
+    //url = 'wss://10.20.20.28:3001/' + evseser;
+    url = 'ws://10.20.20.28:3003/' + evseser;
     //client.connect('wss://10.20.20.28:3001', 'hclab-protocol', evseser);
   }
   else {
