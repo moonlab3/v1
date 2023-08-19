@@ -221,9 +221,12 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "ChargingStatus", userId: req.params.user};
     var result = await connDBServer.sendAndReceive(cwjy);
+    var remaining, elapsed;
 
     for (var i in result) {
-      var elapsed = (new Date(result[i].finished) - new Date(result[i].started)) / 1000;
+      //var elapsed = (new Date(result[i].finished) - new Date(result[i].started)) / 1000;
+      elapsed = Math.floor((new Date(Date.now()) - new Date(result[i].started)) / 1000);
+      console.log(elapsed +':' + new Date(Date.now()) + ':' + new Date(result[i].started));
       //result[i].elapsed = (elapsed.getDate() > 0) ? elapsed.getDate() + ":" : "";
       //result[i].elapsed += elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
       result[i].elapsed = Math.floor(elapsed / 3600) + ":" + Math.floor((elapsed % 3600)/ 60) + ":" + elapsed % 60;
@@ -235,6 +238,10 @@ function APIController(server) {
         */
       result[i].currentSoc = Math.ceil(result[i].bulkSoc + (result[i].meterNow - result[i].meterStart));
       result[i].price = Math.ceil((result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart));
+      remaining = (result[i].fullSoc - result[i].currentSoc) / 6;
+      result[i].remaining = Math.floor(remaining) + ':' + Math.floor(((remaining - Math.floor(remaining)) * 60));
+
+      result[i].estCost = Math.floor(remaining * (result[i].priceHCL + result[i].priceHost));
     }
 
     res.response = { responseCode: { type: 'page', name: 'charging status' }, result: result};

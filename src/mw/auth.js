@@ -2,8 +2,6 @@ var constants = require('../lib/constants');
 const config = require('config');
 const smtp = config.get('smtp');
 const service = config.get('service');
-//const os = require('os');
-//console.log(os.networkInterfaces());
 
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
@@ -26,8 +24,6 @@ function AuthController () {
   });
 
   const connDBServer = require('../tools/socketIOWrapper')('auth');
-
-  //var code = jwt.sign({ email: req.params.email, exp: (Date.now() + constants.EMAIL_AUTH_EXPIRY)}, pk, { algorithm: 'HS256' });
 
   sendAuthMail = async (req, res, next) => {
 

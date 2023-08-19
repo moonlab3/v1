@@ -3,7 +3,6 @@
 // have to go through db server socket.io
 //var myPool;
 function DBConnector(dbms) {
-//function DBConnector() {
   var trxCount = 0, dbSpeedAvg = 0;
   var myPool = require('mysql').createPool({
     port: dbms.port,

@@ -66,7 +66,7 @@ function DBController (dbms) {
         // chargePointId, userId, evseSerial, trxId, 
         query = `SELECT DATE_FORMAT(started, '%Y-%m-%d %H:%i:%s') AS started,
                         DATE_FORMAT(finished, '%Y-%m-%d %H:%i:%s') AS finished,
-                        chargePointName, bulkSoc, fullSoc, meterStart, meterNow, priceHCL, priceHost,
+                        chargePointName, bulkSoc, fullSoc, meterStart, meterNow, totalkWh, priceHCL, priceHost,
                         evseSerial, evseNickname, trxId
                  FROM viewbillplus 
                  WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC LIMIT 1`;
@@ -157,10 +157,9 @@ function DBController (dbms) {
         }
         */
         var kwh = cwjy.pdu.meterValue[0].sampledValue[0].value;
-        query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP 
-                  WHERE evseSerial = '${cwjy.evseSerial}';
-                 UPDATE bill set meterNow = '${kwh}'
-                  WHERE trxId = '${cwjy.pdu.transactionId}';`;
+        query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP WHERE evseSerial = '${cwjy.evseSerial}';
+                 UPDATE bill SET meterNow = '${kwh}' WHERE trxId = '${cwjy.pdu.transactionId}';
+                 UPDATE bill SET totalkWh = meterNow - meterStart WHERE trxId = '${cwjy.pdu.transactionId}'`;
         break;
       case 'StartTransaction':
         cwjy.pdu.transactionId = trxCount++;
