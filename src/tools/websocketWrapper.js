@@ -33,7 +33,8 @@ function WebSocketWrapper(server) {
       //var connection = request.accept('hclab-protocol');
       var connection = request.accept();
     } catch (e) {
-      console.log('wrong protocol');
+      removeConnection(connection)
+      console.log('wrong protocol. connection closed');
       return;
     }
 

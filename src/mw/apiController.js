@@ -152,7 +152,7 @@ function APIController(server) {
         cwjy = { action: 'Reserve', userId: req.body.user, evseSerial: evseSerial };
         connDBServer.sendOnly(cwjy);
 
-        reqToCP = { messageType: 2, uuid: uuidv1(), action: 'DataTransfer', pdu: { vendorId: 'hclab.temp', data: 'yellow' } };
+        reqToCP = { messageType: 2, uuid: uuidv1(), action: 'DataTransfer', pdu: { vendorId: 'com.hclab', data: 'yellow' } };
         connCP.sendTo(evseSerial, reqToCP);
 
         response.responseCode = { type: 'toast', name: 'reserve ok' };

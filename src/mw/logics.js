@@ -157,9 +157,15 @@ function DBController (dbms) {
         }
         */
         var kwh = cwjy.pdu.meterValue[0].sampledValue[0].value;
+        var A = cwjy.pdu.meterValue[0].sampledValue[2].value;
+        var V = cwjy.pdu.meterValue[0].sampledValue[3].value;
+        var t = cwjy.pdu.meterValue[0].sampledValue[4].value;
+        var kw = Math.floor(A * V / 1000);
         query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP WHERE evseSerial = '${cwjy.evseSerial}';
                  UPDATE bill SET meterNow = '${kwh}' WHERE trxId = '${cwjy.pdu.transactionId}';
-                 UPDATE bill SET totalkWh = meterNow - meterStart WHERE trxId = '${cwjy.pdu.transactionId}'`;
+                 UPDATE bill SET totalkWh = meterNow - meterStart WHERE trxId = '${cwjy.pdu.transactionId}';
+                 INSERT INTO evselogs (evseSerial, time, temp, V, A, kWh)
+                 VALUES ('${cwjy.evseSerial}', CURRENT_TIMESTAMP, ${t}, ${V}, ${A}, ${kw}); `;
         break;
       case 'StartTransaction':
         cwjy.pdu.transactionId = trxCount++;
