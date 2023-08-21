@@ -26,8 +26,9 @@ function init() {
   }
 
   if (target == '' || evseser == '') {
-    console.log('usage: wstest.js {target} {evse}');
-    process.exit();
+    console.log('usage: wstest.js {target} {evse}\n default option submitted (local, 7a01-0001');
+    target = 'local';
+    evseser = '7a01-0001';
   }
 
   if(target == 'local') {

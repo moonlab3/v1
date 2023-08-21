@@ -1,11 +1,16 @@
-var constants = require('../lib/constants');
 // websocket wrapper for charge point communication.
+var constants = require('../lib/constants');
+
+// temporary temporary temporary temporary temporary temporary
+// temporary temporary temporary temporary temporary temporary    -->
 const http = require('http');
 const ws = http.createServer();
 
 ws.listen(3003, () => {
-  console.log('ws server opened');
+  console.log('ws server opened' + new Date(Date.now()));
 });
+// temporary temporary temporary temporary temporary temporary  -->
+// temporary temporary temporary temporary temporary temporary
 
 function WebSocketWrapper(server) {
   const WebSocketServer = require('websocket').server;
@@ -14,15 +19,19 @@ function WebSocketWrapper(server) {
   var forwardingArray = [];
 
   wss = new WebSocketServer({
+    // temporary temporary temporary temporary temporary temporary
+    // temporary temporary temporary temporary temporary temporary
     //httpServer: server,
     httpServer: ws,
     autoAcceptConnections: false
   });
 
   wss.on('request', function (request) {
-    console.log('websocket request' + JSON.stringify(request));
     try {
-      var connection = request.accept('hclab-protocol');
+    // temporary temporary temporary temporary temporary temporary
+    // temporary temporary temporary temporary temporary temporary
+      //var connection = request.accept('hclab-protocol');
+      var connection = request.accept();
     } catch (e) {
       console.log('wrong protocol');
       return;
@@ -32,7 +41,7 @@ function WebSocketWrapper(server) {
     console.log('connected from ' + origin);
 
     connection.on('message', (message) => {
-      console.log('incoming: ' + message.utf8Data);
+      console.log('incoming: ' + message.utf8Data + '\n' + new Date(Date.now()));
       try {
         var incoming = JSON.parse(message.utf8Data);
         var parsed = (incoming[0] == 2) ? { messageType: incoming[0], uuid: incoming[1], action: incoming[2], pdu: incoming[3] }

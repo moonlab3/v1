@@ -47,7 +47,7 @@ function DBConnector(dbms) {
         trxCount++;
         dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
 
-        console.debug(`${new Date()}\n query: ${query}\n result: ${JSON.stringify(res)}`);
+        console.debug(`${new Date()} query submitted \n ${query}\n result: ${JSON.stringify(res)}`);
         if(res.length > 0)
           resolve(res);
         else if(res.length == undefined)
