@@ -50,7 +50,8 @@ function init() {
     console.log('usage: wstest.js {target} {evse}');
     process.exit();
   }
-  client.connect(url, 'hclab-protocol');
+  //client.connect(url, 'hclab-protocol');
+  client.connect(url, '');
 }
 
 init();
@@ -188,9 +189,14 @@ client.on('connect', (connection) => {
         sendAndLog(sending);
         meterStart = Math.floor(Math.random() * (3000) * 100) / 100;
         bulkStart = Math.floor(Math.random() * 70 * 100) / 100 + 1;
+        /*
         sending = `[2, "${uuidv1()}", "StartTransaction", {"connectorId": 1, "idTag": "${payload.idTag}", 
                                                            "meterStart": ${meterStart}, "timeStamp": ${Date.now()},
                                                            "bulkSoc": ${bulkStart}, "fullSoc": 72.7 }]`;
+                                                           */
+        sending = `[2, "${uuidv1()}", "StartTransaction", {"connectorId": 1, "idTag": "${payload.idTag}", 
+                                                           "meterStart": ${meterStart}, "timeStamp": ${Date.now()},
+                                                           "bulkSoc": 0, "fullSoc": 0 }]`;
         sendAndLog(sending);
         repeats = 1;
         break;

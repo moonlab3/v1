@@ -173,8 +173,13 @@ function DBController (dbms) {
         result = await dbConnector.submitSync(query);
 
         var est = Date.now() / 1000;
-        if(cwjy.pdu.fullSoc > cwjy.pdu.bulkSoc > 0 )
+        if(cwjy.pdu.fullSoc > cwjy.pdu.bulkSoc > 0 ) {
           est += (cwjy.pdu.fullSoc - cwjy.pdu.bulkSoc) / result[0].capacity * 3600;
+        }
+        else {
+          est = 0;
+        }
+
 
         query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${cwjy.pdu.idTag}', occupyingEnd = FROM_UNIXTIME(${est}) 
                   WHERE evseSerial = '${cwjy.evseSerial}';
