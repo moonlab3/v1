@@ -2,6 +2,7 @@ var constants = require('../lib/constants');
 
 function DBMonitor(dbms) {
   var dbConnector = require('../tools/dbConnector')(dbms);
+  dbConnector.setLog('no');
 
   async function watch() {
     console.log('monitor started');

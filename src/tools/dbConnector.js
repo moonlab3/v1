@@ -4,6 +4,7 @@
 //var myPool;
 function DBConnector(dbms) {
   var trxCount = 0, dbSpeedAvg = 0;
+  var log = 'yes';
   var myPool = require('mysql').createPool({
     port: dbms.port,
     host: dbms.host,
@@ -19,6 +20,9 @@ function DBConnector(dbms) {
   }
   */
 
+  setLog = (yn) => {
+    log = yn;
+  }
   // query submit without return
   submit = (query) => {
     if (!query)
@@ -47,7 +51,8 @@ function DBConnector(dbms) {
         trxCount++;
         dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
 
-        console.debug(`${new Date()} query submitted \n ${query}\n result: ${JSON.stringify(res)}`);
+        if(log == 'yes') 
+          console.debug(`${new Date()} query submitted \n ${query}\n result: ${JSON.stringify(res)}`);
         if(res.length > 0)
           resolve(res);
         else if(res.length == undefined)
@@ -60,6 +65,7 @@ function DBConnector(dbms) {
 
   const dbConnector = {
     //setPool,
+    setLog,
     submit,
     submitSync
   }
