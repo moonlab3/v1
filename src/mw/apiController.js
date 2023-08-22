@@ -242,7 +242,7 @@ function APIController(server) {
       result[i].remaining = Math.floor(remaining) + ':' + Math.floor(((remaining - Math.floor(remaining)) * 60));
 
       result[i].estCost = Math.floor(remaining * (result[i].priceHCL + result[i].priceHost));
-      if(result[i].fullSoc = 0) {
+      if(result[i].fullSoc == 0) {
         result[i].remaining = 0;
         result[i].estCost = 0;
       }

@@ -182,7 +182,7 @@ function DBController (dbms) {
 
         query = `SELECT userId FROM user WHERE cardNumber = '${cwjy.pdu.idTag}'`;
         result = await dbConnector.submitSync(query);
-        var userId = result[0].userId;
+        var userId = result ? result[0].userId : cwjy.pdu.idTag;
 
         query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${userId}', occupyingEnd = FROM_UNIXTIME(${est}) 
                   WHERE evseSerial = '${cwjy.evseSerial}';
