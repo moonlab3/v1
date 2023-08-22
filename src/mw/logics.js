@@ -136,7 +136,7 @@ function DBController (dbms) {
                        AND chargepoint.model = '${cwjy.pdu.chargePointModel}'`;
         break;
       case 'Authorize':                                           
-        query = `SELECT authStatus FROM user WHERE userId = '${cwjy.pdu.idTag}'`;
+        query = `SELECT authStatus FROM user WHERE cardNumber = '${cwjy.pdu.idTag}'`;
         break;
       case 'Heartbeat':                                           
         query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP 
@@ -180,11 +180,14 @@ function DBController (dbms) {
           est = 0;
         }
 
+        query = `SELECT userId FROM user WHERE cardNumber = '${cwjy.pdu.idTag}'`;
+        result = await dbConnector.submitSync(query);
+        var userId = result[0].userId;
 
-        query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${cwjy.pdu.idTag}', occupyingEnd = FROM_UNIXTIME(${est}) 
+        query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${userId}', occupyingEnd = FROM_UNIXTIME(${est}) 
                   WHERE evseSerial = '${cwjy.evseSerial}';
                  INSERT INTO bill (started, evseSerial, userId, bulkSoc, fullSoc, meterStart, meterNow, trxId)
-                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${cwjy.pdu.idTag}',
+                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${userId}',
                          '${cwjy.pdu.bulkSoc}', '${cwjy.pdu.fullSoc}', '${cwjy.pdu.meterStart}', 
                          '${cwjy.pdu.meterStart}', ${cwjy.pdu.transactionId});
                  UPDATE bill b INNER JOIN evse e ON b.evseSerial = e.evseSerial
