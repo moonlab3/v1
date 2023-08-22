@@ -172,6 +172,7 @@ function DBController (dbms) {
         query = `SELECT capacity FROM evse WHERE evseSerial = '${cwjy.evseSerial}'`;
         result = await dbConnector.submitSync(query);
 
+        /*
         var est = Date.now() / 1000;
         if(cwjy.pdu.fullSoc > cwjy.pdu.bulkSoc > 0 ) {
           est += (cwjy.pdu.fullSoc - cwjy.pdu.bulkSoc) / result[0].capacity * 3600;
@@ -179,11 +180,25 @@ function DBController (dbms) {
         else {
           est = 0;
         }
+        */
 
         query = `SELECT userId FROM user WHERE cardNumber = '${cwjy.pdu.idTag}'`;
         result = await dbConnector.submitSync(query);
         var userId = result ? result[0].userId : cwjy.pdu.idTag;
 
+        query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${userId}'
+                  WHERE evseSerial = '${cwjy.evseSerial}';
+                 INSERT INTO bill (started, evseSerial, userId, bulkSoc, meterStart, meterNow, trxId)
+                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${userId}',
+                         '${cwjy.pdu.ressoc}', '${cwjy.pdu.meterStart}', 
+                         '${cwjy.pdu.meterStart}', ${cwjy.pdu.transactionId});
+                 UPDATE bill b INNER JOIN evse e ON b.evseSerial = e.evseSerial
+                  SET b.chargePointId = e.chargePointId, b.evseNickname = e.evseNickname,  b.ownerId = e.ownerId
+                  WHERE b.trxId = ${cwjy.pdu.transactionId};
+                 INSERT INTO favorite (userId, chargePointId, recent)
+                  SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
+                  WHERE evseSerial = '${cwjy.evseSerial}';`;
+        /*
         query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${userId}', occupyingEnd = FROM_UNIXTIME(${est}) 
                   WHERE evseSerial = '${cwjy.evseSerial}';
                  INSERT INTO bill (started, evseSerial, userId, bulkSoc, fullSoc, meterStart, meterNow, trxId)
@@ -193,21 +208,6 @@ function DBController (dbms) {
                  UPDATE bill b INNER JOIN evse e ON b.evseSerial = e.evseSerial
                   SET b.chargePointId = e.chargePointId, b.evseNickname = e.evseNickname,  b.ownerId = e.ownerId
                   WHERE b.trxId = ${cwjy.pdu.transactionId};
-                 INSERT INTO favorite (userId, chargePointId, recent)
-                  SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
-                  WHERE evseSerial = '${cwjy.evseSerial}';`;
-        /*
-        // don't need. viewbillplus can hold the information
-        query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${cwjy.pdu.idTag}', occupyingEnd = FROM_UNIXTIME(${est}) 
-                  WHERE evseSerial = '${cwjy.evseSerial}';
-                 INSERT INTO bill (started, evseSerial, userId, trxId, bulkSoc, fullSoc, meterStart, meterNow)
-                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${cwjy.pdu.idTag}',
-                  '${cwjy.pdu.transactionId}', '${cwjy.pdu.bulkSoc}', '${cwjy.pdu.fullSoc}', 
-                  '${cwjy.pdu.meterStart}', '${cwjy.pdu.meterStart}');
-                 UPDATE bill LEFT JOIN evse ON bill.evseSerial = evse.evseSerial
-                  SET bill.chargePointId = evse.chargePointId, bill.ownerId = evse.ownerId,
-                    bill.evseNickname = evse.evseNickname
-                  WHERE bill.trxId = '${cwjy.pdu.transactionId}';
                  INSERT INTO favorite (userId, chargePointId, recent)
                   SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
                   WHERE evseSerial = '${cwjy.evseSerial}';`;

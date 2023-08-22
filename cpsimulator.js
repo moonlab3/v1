@@ -196,7 +196,7 @@ client.on('connect', (connection) => {
                                                            */
         sending = `[2, "${uuidv1()}", "StartTransaction", {"connectorId": 1, "idTag": "${payload.idTag}", 
                                                            "meterStart": ${meterStart}, "timeStamp": ${Date.now()},
-                                                           "bulkSoc": 0, "fullSoc": 0 }]`;
+                                                           "ressoc": 0 }]`;
         sendAndLog(sending);
         repeats = 1;
         break;
