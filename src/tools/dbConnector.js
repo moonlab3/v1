@@ -41,6 +41,8 @@ function DBConnector(dbms) {
     //console.log('query: ' + query);
     return new Promise((resolve, reject) => {
       var start = Date.now();
+      if (log == 'yes')
+        console.debug(`${new Date()} query submitted \n ${query}`);
       myPool.query(query, (err, res) => {
         if (err) {
           console.error('dbConnector:submitSync: ' + err);
@@ -52,7 +54,7 @@ function DBConnector(dbms) {
         dbSpeedAvg = (dbSpeedAvg * (trxCount - 1) + end - start) / trxCount;
 
         if(log == 'yes') 
-          console.debug(`${new Date()} query submitted \n ${query}\n result: ${JSON.stringify(res)}`);
+          console.debug(`result: ${JSON.stringify(res)}`);
         if(res.length > 0)
           resolve(res);
         else if(res.length == undefined)

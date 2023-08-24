@@ -221,30 +221,33 @@ function APIController(server) {
     waitingJobs++;
     var cwjy = { action: "ChargingStatus", userId: req.params.user};
     var result = await connDBServer.sendAndReceive(cwjy);
-    var remaining, elapsed;
+    var remaining, elapsed, avgKW, capa;
 
     for (var i in result) {
-      //var elapsed = (new Date(result[i].finished) - new Date(result[i].started)) / 1000;
       elapsed = Math.floor((new Date(Date.now()) - new Date(result[i].started)) / 1000);
       console.log(elapsed +':' + new Date(Date.now()) + ':' + new Date(result[i].started));
-      //result[i].elapsed = (elapsed.getDate() > 0) ? elapsed.getDate() + ":" : "";
-      //result[i].elapsed += elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
       result[i].elapsed = Math.floor(elapsed / 3600) + ":" + Math.floor((elapsed % 3600)/ 60) + ":" + elapsed % 60;
-      /*
-      if(elapsed.getDate() > 0)
-        result[i].elapsed = elapsed.getDate() + ":" + elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
-      else
-        result[i].elapsed = elapsed.getHours() + ":" + elapsed.getMinutes() + ":" + elapsed.getSeconds();
-        */
-      result[i].currentSoc = Math.ceil(result[i].bulkSoc + (result[i].meterNow - result[i].meterStart));
-      result[i].price = Math.ceil((result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart));
-      remaining = (result[i].fullSoc - result[i].currentSoc) / 6;
-      result[i].remaining = Math.floor(remaining) + ':' + Math.floor(((remaining - Math.floor(remaining)) * 60));
 
-      result[i].estCost = Math.floor(remaining * (result[i].priceHCL + result[i].priceHost));
-      if(result[i].fullSoc == 0) {
+      result[i].price = Math.ceil((result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart));
+      avgKW = (result[i].meterNow - result[i].meterStart) / elapsed * 3600;
+
+      /*
+      if (result[i].meterNow - result[i].meterStart > 5) {
+        capa = (result[i].meterNow - result[i].meterStart) / (result[i].currentSoc - result[i].bulkSoc) * 100;
+      }
+      */
+      result[i].avgKW = Math.round(avgKW * 100) / 100;
+
+      if (result[i].fullSoc == 0) {
+        result[i].currentSoc = result[i].bulkSoc;
         result[i].remaining = 0;
         result[i].estCost = 0;
+      }
+      else {
+        result[i].currentSoc = Math.round(result[i].bulkSoc + (result[i].meterNow - result[i].meterStart) / capa);
+        remaining = (result[i].fullSoc - result[i].currentSoc) / avgKW;
+        result[i].remaining = Math.floor(remaining) + ':' + Math.floor(((remaining - Math.floor(remaining)) * 60));
+        result[i].estCost = Math.ceil(remaining * (result[i].priceHCL + result[i].priceHost));
       }
     }
 

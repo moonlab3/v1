@@ -196,8 +196,9 @@ client.on('connect', (connection) => {
                                                            */
         sending = `[2, "${uuidv1()}", "StartTransaction", {"connectorId": 1, "idTag": "${payload.idTag}", 
                                                            "meterStart": ${meterStart}, "timeStamp": ${Date.now()},
-                                                           "ressoc": 0 }]`;
-        sendAndLog(sending);
+                                                           "ressoc": ${bulkStart} }]`;
+        setTimeout(sendAndLog, 2000, sending);
+        //sendAndLog(sending);
         repeats = 1;
         break;
       case 'RemoteStopTransaction':

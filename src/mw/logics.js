@@ -186,10 +186,12 @@ function DBController (dbms) {
         result = await dbConnector.submitSync(query);
         var userId = result ? result[0].userId : cwjy.pdu.idTag;
 
+        // epoch convert
+        // / 1000 or not
         query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${userId}'
                   WHERE evseSerial = '${cwjy.evseSerial}';
                  INSERT INTO bill (started, evseSerial, userId, bulkSoc, meterStart, meterNow, trxId)
-                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${userId}',
+                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp}), '${cwjy.evseSerial}', '${userId}',
                          '${cwjy.pdu.ressoc}', '${cwjy.pdu.meterStart}', 
                          '${cwjy.pdu.meterStart}', ${cwjy.pdu.transactionId});
                  UPDATE bill b INNER JOIN evse e ON b.evseSerial = e.evseSerial
@@ -227,7 +229,7 @@ function DBController (dbms) {
         var costhcl = totalkWh * Number(result[0].priceHCL);
         var costhost = totalkWh * Number(result[0].priceHost);
         query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}';
-                 UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), cost = '${costhcl + costhost}',
+                 UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timeStamp}), cost = '${costhcl + costhost}',
                                  costHCL = '${costhcl}', costHost='${costhost}', termination = '${cwjy.pdu.reason}', 
                                  meterNow = '${cwjy.pdu.meterStop}', totalkWh = '${totalkWh}'
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
@@ -272,7 +274,7 @@ function DBController (dbms) {
                                               DATE_FORMAT(recent, '%Y-%m-%d %H:%i:%s') as recent, c.avails AS avails
                                               FROM favorite f JOIN chargepoint c ON f.chargePointId = c.chargePointId
                                               WHERE userId = '${cwjy.userId}'
-                                              AND recent IS NOT NULL ORDER BY recent`;
+                                              AND recent IS NOT NULL ORDER BY recent DESC`;
         break;
       case 'NewUserFavo':
         if(cwjy.favo == 'favorite') {
