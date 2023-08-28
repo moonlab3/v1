@@ -160,15 +160,27 @@ function DBController (dbms) {
         }
         */
         var kwh = cwjy.pdu.meterValue[0].sampledValue[0].value;
+        var ckWh = cwjy.pdu.meterValue[0].sampledValue[1].value;
         var A = cwjy.pdu.meterValue[0].sampledValue[2].value;
         var V = cwjy.pdu.meterValue[0].sampledValue[3].value;
         var t = cwjy.pdu.meterValue[0].sampledValue[4].value;
         var kw = Math.floor(A * V / 1000);
-        query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP WHERE evseSerial = '${cwjy.evseSerial}';
-                 UPDATE bill SET meterNow = '${kwh}' WHERE trxId = '${cwjy.pdu.transactionId}';
-                 UPDATE bill SET totalkWh = meterNow - meterStart WHERE trxId = '${cwjy.pdu.transactionId}';
-                 INSERT INTO evselogs (evseSerial, time, temp, V, A, kWh)
-                 VALUES ('${cwjy.evseSerial}', CURRENT_TIMESTAMP, ${t}, ${V}, ${A}, ${kw}); `;
+        query = `SELECT meterStart FROM bill WHERE trxId = '${cwjy.pdu.transactionId}'`;
+        result = await dbConnector.submitSync(query);
+        if (result[0].meterStart == 0) {
+          query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP WHERE evseSerial = '${cwjy.evseSerial}';
+                    UPDATE bill SET meterNow = '${kwh}' WHERE trxId = '${cwjy.pdu.transactionId}';
+                    UPDATE bill SET totalkWh = totalkWh + ${ckWh} WHERE trxId = '${cwjy.pdu.transactionId}';
+                    INSERT INTO evselogs (evseSerial, time, temp, V, A, kWh)
+                    VALUES ('${cwjy.evseSerial}', CURRENT_TIMESTAMP, ${t}, ${V}, ${A}, ${kw}); `;
+        }
+        else {
+          query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP WHERE evseSerial = '${cwjy.evseSerial}';
+                    UPDATE bill SET meterNow = '${kwh}' WHERE trxId = '${cwjy.pdu.transactionId}';
+                    UPDATE bill SET totalkWh = meterNow - meterStart WHERE trxId = '${cwjy.pdu.transactionId}';
+                    INSERT INTO evselogs (evseSerial, time, temp, V, A, kWh)
+                    VALUES ('${cwjy.evseSerial}', CURRENT_TIMESTAMP, ${t}, ${V}, ${A}, ${kw}); `;
+        }
         break;
       case 'StartTransaction':
         cwjy.pdu.transactionId = trxCount++;
@@ -236,11 +248,24 @@ function DBController (dbms) {
         var totalkWh = meterStop - Number(result[0].meterStart);
         var costhcl = totalkWh * Number(result[0].priceHCL);
         var costhost = totalkWh * Number(result[0].priceHost);
+                 //UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
+                 //UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
+                 //UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
+                 //UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
+        if (result[0].meterStart == 0) {
         query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}';
-                 UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
+                 UPDATE bill SET finished = CURRENT_TIMESTAMP, cost = '${costhcl + costhost}',
+                                 costHCL = '${costhcl}', costHost='${costhost}', termination = '${cwjy.pdu.reason}', 
+                                 meterNow = '${meterStop}'
+                  WHERE trxId = '${cwjy.pdu.transactionId}';`;
+        }
+        else {
+        query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}';
+                 UPDATE bill SET finished = CURRENT_TIMESTAMP, cost = '${costhcl + costhost}',
                                  costHCL = '${costhcl}', costHost='${costhost}', termination = '${cwjy.pdu.reason}', 
                                  meterNow = '${meterStop}', totalkWh = '${totalkWh}'
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
+        }
         break;
       case 'StatusNotification':
         query = (cwjy.userId) ? `UPDATE evse SET status = '${cwjy.pdu.status}'
