@@ -126,7 +126,7 @@ function DBController (dbms) {
                         DATE_FORMAT(finished, '%Y-%m-%d %H:%i:%s') AS finished,
                         chargePointName, evseNickname, totalkWh, cost 
                  FROM viewbillplus 
-                 WHERE userId = '${cwjy.userId}'`;
+                 WHERE userId = '${cwjy.userId}' ORDER BY trxId DESC`;
         break;
       case 'BootNotification':                                    
         query = `SELECT evseSerial, heartbeat 
@@ -185,14 +185,18 @@ function DBController (dbms) {
         query = `SELECT userId FROM user WHERE cardNumber = '${cwjy.pdu.idTag}'`;
         result = await dbConnector.submitSync(query);
         var userId = result ? result[0].userId : cwjy.pdu.idTag;
+        var meterStart = cwjy.pdu.meterStart / 1000;
 
         // epoch convert
         // / 1000 or not
+                  //VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp}), '${cwjy.evseSerial}', '${userId}',
+                  //VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp}), '${cwjy.evseSerial}', '${userId}',
+                  //VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp}), '${cwjy.evseSerial}', '${userId}',
         query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${userId}'
                   WHERE evseSerial = '${cwjy.evseSerial}';
                  INSERT INTO bill (started, evseSerial, userId, bulkSoc, meterStart, meterNow, trxId)
-                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp}), '${cwjy.evseSerial}', '${userId}',
-                         '${cwjy.pdu.ressoc}', '${cwjy.pdu.meterStart}', 
+                  VALUES (CURRENT_TIMESTAMP, '${cwjy.evseSerial}', '${userId}',
+                         '${cwjy.pdu.ressoc}', '${meterStart}', 
                          '${cwjy.pdu.meterStart}', ${cwjy.pdu.transactionId});
                  UPDATE bill b INNER JOIN evse e ON b.evseSerial = e.evseSerial
                   SET b.chargePointId = e.chargePointId, b.evseNickname = e.evseNickname,  b.ownerId = e.ownerId
@@ -225,20 +229,27 @@ function DBController (dbms) {
           query = '';
           break;
         }
-        var totalkWh = Number(cwjy.pdu.meterStop) - Number(result[0].meterStart);
+        var meterStop = Number(cwjy.pdu.meterStop) / 1000;
+        var totalkWh = meterStop - Number(result[0].meterStart);
         var costhcl = totalkWh * Number(result[0].priceHCL);
         var costhost = totalkWh * Number(result[0].priceHost);
         query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}';
-                 UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timeStamp}), cost = '${costhcl + costhost}',
+                 UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
                                  costHCL = '${costhcl}', costHost='${costhost}', termination = '${cwjy.pdu.reason}', 
-                                 meterNow = '${cwjy.pdu.meterStop}', totalkWh = '${totalkWh}'
+                                 meterNow = '${meterStop}', totalkWh = '${totalkWh}'
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
         break;
       case 'StatusNotification':
+        query = (cwjy.userId) ? `UPDATE evse SET status = '${cwjy.pdu.status}'
+                                  WHERE evseSerial = '${cwjy.evseSerial}'`
+                              : `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingEnd = NULL
+                                  WHERE evseSerial = '${cwjy.evseSerial}'`;
+        /*
         query = (cwjy.userId) ? `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = '${cwjy.userId}'
                                   WHERE evseSerial = '${cwjy.evseSerial}'`
                               : `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = NULL, occupyingEnd = NULL
                                   WHERE evseSerial = '${cwjy.evseSerial}'`;
+                                  */
         break;
       case 'GetCPDetail':
         query = `SELECT chargePointName, chargePointId,  address, locationDetail, lat, lng,
@@ -317,6 +328,14 @@ function DBController (dbms) {
         break;
       case 'Reset':
         break;
+
+      ///////////////////////////////////////////
+      ///// csms ////////////////////////////////
+      ////////////////////////////////////////////
+      case 'cpList':
+        query = `SELECT chargePointId, chargePointName, lat, lng, locationDetail, address, priceHCL, priceHost, priceExtra, evses 
+                 FROM chargepoint WHERE ownerId = '${cwjy.ownerId}'`;
+        break;
     }
     result = await dbConnector.submitSync(query);
 
@@ -348,7 +367,8 @@ function DBController (dbms) {
                                 : { idTagInfo: { status: result[0].authStatus } };
         break;
       case 'Heartbeat':
-        returnValue = { currentTime: Date.now() };
+        var nowstr = Math.floor(Date.now() / 1000).toString();
+        returnValue = { currentTime: nowstr};
         break;
       case 'StartTransaction': 
         returnValue = { transactionId: cwjy.pdu.transactionId, idTagInfo: { status: 'Accepted' } };
@@ -359,11 +379,14 @@ function DBController (dbms) {
         returnValue = {};
         break;
       case 'BootNotification':
+        var now = Math.floor(Date.now() / 1000);
+        var nowstr = now.toString();
+
         if(!result)
-          returnValue = { currentTime: Date.now(), interval: 0, status: 'Rejected' };
+          returnValue = { currentTime: nowstr, interval: 0, status: 'Rejected' };
         else {
-          returnValue = { currentTime: Date.now(), interval: result[0].heartbeat , status: 'Accepted' };
-          var now = Date.now() / 1000;
+          returnValue = { currentTime: nowstr, interval: result[0].heartbeat, status: 'Accepted' };
+
           query = `UPDATE evse SET booted = FROM_UNIXTIME(${now}), lastHeartbeat = FROM_UNIXTIME(${now}),
                                    status = 'Available', occupyinguserid = NULL, occupyingEnd = NULL
                    WHERE evseSerial = '${cwjy.evseSerial}'`;

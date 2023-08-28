@@ -17,6 +17,14 @@ function DBMonitor(dbms) {
       query = `UPDATE chargepoint SET avails = ${r2[0].cnt} WHERE chargePointId = '${result[i].chargePointId}'`;
       dbConnector.submitSync(query);
     }
+    
+    query = `SELECT occupyingUserId, evseSerial FROM evse WHERE occupyingEnd < CURRENT_TIMESTAMP AND status='Reserved'`;
+    result = await dbConnector.submitSync(query);
+    for (var i in result) {
+      query = `UPDATE evse SET occupyingUserId = NULL, occupyingEnd = NULL, status = 'Available' 
+                WHERE evseSerial = '${result[i].evseSerial}'`;
+      dbConnector.submit(query);
+    }
 
     //////////////////////////////////////////
     // heartbeat

@@ -18,6 +18,14 @@ var V1RouterWrapper = function (server) {
   router.post('/signup/phone', auth.sendAuthPhone, controller.writeResponse);
   router.get('/signup/status/phone/:phone', auth.phoneStatus, controller.writeResponse);
 
+  ////////////////////////////////////// 0825 started
+  /////////////////////////////////////
+  router.post('/signup/card', auth.verify, controller.registerCard, controller.writeResponse);
+
+  ////////////////////////////////////// 0825 started
+  /////////////////////////////////////
+
+
   router.get('/authentication/email/:code', auth.emailAuth, controller.writeResponse);
 
   // . test test test test

@@ -156,7 +156,7 @@ function WebSocketWrapper(server) {
       enlistForwarding(destination, (result) => {
         clearTimeout(timeout);
         delistForwarding(destination);
-        console.log('sendandreceive promise: ' + JSON.stringify(result));
+        //console.log('sendandreceive promise: ' + JSON.stringify(result));
         resolve(result);
       });
     });

@@ -44,7 +44,7 @@ function APIController(server) {
 
       reqToCP = { messageType: 2, uuid: uuidv1(), action: 'RemoteStartTransaction', pdu: { idTag: req.body.user , connectorId: 1} };
       resultCP = await connCP.sendAndReceive(evseSerial, reqToCP);
-      console.log('after resolve start charge evse result: ' + JSON.stringify(resultCP));
+      //console.log('after resolve start charge evse result: ' + JSON.stringify(resultCP));
       if (!resultCP) {
         console.log('timeout timeout');
         response.responseCode = { type: 'error', name: 'temporarily unavailable' };
@@ -225,7 +225,7 @@ function APIController(server) {
 
     for (var i in result) {
       elapsed = Math.floor((new Date(Date.now()) - new Date(result[i].started)) / 1000);
-      console.log(elapsed +':' + new Date(Date.now()) + ':' + new Date(result[i].started));
+      //console.log(elapsed +':' + new Date(Date.now()) + ':' + new Date(result[i].started));
       result[i].elapsed = Math.floor(elapsed / 3600) + ":" + Math.floor((elapsed % 3600)/ 60) + ":" + elapsed % 60;
 
       result[i].price = Math.ceil((result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart));
@@ -245,7 +245,7 @@ function APIController(server) {
       }
       else {
         result[i].currentSoc = Math.round(result[i].bulkSoc + (result[i].meterNow - result[i].meterStart) / capa);
-        remaining = (result[i].fullSoc - result[i].currentSoc) / avgKW;
+        //remaining = (result[i].fullSoc - result[i].currentSoc) / avgKW;
         result[i].remaining = Math.floor(remaining) + ':' + Math.floor(((remaining - Math.floor(remaining)) * 60));
         result[i].estCost = Math.ceil(remaining * (result[i].priceHCL + result[i].priceHost));
       }
@@ -412,19 +412,34 @@ function APIController(server) {
   }
 
   csmsListCP = async (req, res, next) => {
-    if (!req.query.host) {
+    if (!req.query.userId) {
+      res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: []};
+      next();
+      return;
+    }
+    var cwjy, result;
+
+    cwjy = { action: 'cpList', ownerId: req.query.userId };
+    var cpinfo = await connDBServer.sendAndReceive(cwjy);
+    //var evsesStatus = 
+    
+    result = {chargepoint: cpinfo };
+
+    res.response = { responseCode: { type: 'page', name: 'cp list' }, result: result};
+    next();
+      
+  }
+  csmsListEVSE = async (req, res, next) => {
+    if (!req.query.cp) {
       res.response = { responseCode: { type: 'error', name: 'wrong parameters' }, result: []};
       next();
       return;
     }
 
-    var cwjy = { action: 'cpList', ownerId: req.query.userId };
+    var cwjy = { action: 'ShowAllEVSE', chargePointId: req.query.cp };
     var result = await connDBServer.sendAndReceive(cwjy);
-    res.response = { responseCode: { type: 'page', name: 'cp list' }, result: result};
+    res.response = { responseCode: { type: 'page', name: 'EVSE list' }, result: result};
     next();
-      
-  }
-  csmsListEVSE = (req, res, next) => {
   }
 
   csmsHistoryCP = (req, res, next) => {
