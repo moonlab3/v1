@@ -52,6 +52,9 @@ function DBController (dbms) {
       case 'GetSerial':
         query = `SELECT evseSerial FROM evsecheck WHERE evseNickname = '${cwjy.evseNickname}'`;
         break;
+      case 'EVSEStatus':
+        query = `SELECT status FROM evse WHERE evseSerial = '${cwjy.evseSerial}'`;
+        break;
       case 'EVSECheck':
         query = `SELECT evseSerial, status, occupyingUserId FROM evse WHERE evseNickname = '${cwjy.evseNickname}'`;
         break;
@@ -197,7 +200,7 @@ function DBController (dbms) {
                  INSERT INTO bill (started, evseSerial, userId, bulkSoc, meterStart, meterNow, trxId)
                   VALUES (CURRENT_TIMESTAMP, '${cwjy.evseSerial}', '${userId}',
                          '${cwjy.pdu.ressoc}', '${meterStart}', 
-                         '${cwjy.pdu.meterStart}', ${cwjy.pdu.transactionId});
+                         '${meterStart}', ${cwjy.pdu.transactionId});
                  UPDATE bill b INNER JOIN evse e ON b.evseSerial = e.evseSerial
                   SET b.chargePointId = e.chargePointId, b.evseNickname = e.evseNickname,  b.ownerId = e.ownerId
                   WHERE b.trxId = ${cwjy.pdu.transactionId};
@@ -354,6 +357,7 @@ function DBController (dbms) {
       case 'ChargingStatus':
       case 'Angry':
       case 'EVSECheck':     
+      case 'EVSEStatus':
       case 'IsFavorite':
       case 'GetUserFavo':
       case 'NewUserFavo':

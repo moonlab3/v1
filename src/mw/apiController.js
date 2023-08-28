@@ -213,6 +213,15 @@ function APIController(server) {
 
     var cwjy = { action: "UserStatus", userId: req.params.user };
     var result = await connDBServer.sendAndReceive(cwjy);
+    var r2;
+    
+    for (var i in result) {
+      if(result[i].status == 'Charging') {
+        cwjy = { action: 'ChargingStatus', userId: req.params.user };
+        r2 = await connDBServer.sendAndReceive(cwjy);
+        result[i].chargingStatus = r2[0].bulkSoc;
+      }
+    }
     res.response = { responseCode: { type: 'page', name: 'user status' }, result: result};
     next();
   }
@@ -223,9 +232,12 @@ function APIController(server) {
     var result = await connDBServer.sendAndReceive(cwjy);
     var remaining, elapsed, avgKW, capa;
 
+    //  there is only one record for this sql tho.
+    cwjy = { action: 'EVSEStatus', evseSerial: result[0].evseSerial };
+    var r2 = await connDBServer.sendAndReceive(cwjy);
+
     for (var i in result) {
       elapsed = Math.floor((new Date(Date.now()) - new Date(result[i].started)) / 1000);
-      //console.log(elapsed +':' + new Date(Date.now()) + ':' + new Date(result[i].started));
       result[i].elapsed = Math.floor(elapsed / 3600) + ":" + Math.floor((elapsed % 3600)/ 60) + ":" + elapsed % 60;
 
       result[i].price = Math.ceil((result[i].priceHCL + result[i].priceHost) * (result[i].meterNow - result[i].meterStart));
@@ -251,7 +263,8 @@ function APIController(server) {
       }
     }
 
-    res.response = { responseCode: { type: 'page', name: 'charging status' }, result: result};
+
+    res.response = { responseCode: { type: 'page', name: 'charging status' }, status: r2[0].status, result: result};
     next();
   }
 

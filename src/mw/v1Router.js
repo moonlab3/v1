@@ -20,7 +20,7 @@ var V1RouterWrapper = function (server) {
 
   ////////////////////////////////////// 0825 started
   /////////////////////////////////////
-  router.post('/signup/card', auth.verify, controller.registerCard, controller.writeResponse);
+  //router.post('/signup/card', auth.verify, controller.registerCard, controller.writeResponse);
 
   ////////////////////////////////////// 0825 started
   /////////////////////////////////////
