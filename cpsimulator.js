@@ -80,7 +80,7 @@ client.on('connect', (connection) => {
     var T = Math.floor(Math.random() * 40) + 20;
     var mv = `[2, "${uuidv1()}", "MeterValues",  { "connectorId": 1, "transactionId": ${trxid},
                    "meterValue": [
-                      {"timestamp": "${Date.now()}", 
+                      {"timestamp": "${Math.floor(Date.now()/1000)}", 
                         "sampledValue": [{"measurand": "Energy.Active.Import.Register", "unit": "kWh", "value": ${sampled}},
                                          {"measurand": "Energy.Active.Import.Interval", "unit": "kWh", "value": 0.3},
                                          {"measurand": "Current.Import", "unit": "A", "value": ${A}},

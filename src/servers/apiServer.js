@@ -2,7 +2,7 @@
 
 process.title = process.argv[2];
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
-process.env.NODE_APP_INSTANCE = 1;
+//process.env.NODE_APP_INSTANCE = 1;
 
 const express = require('express');
 const app = express();

@@ -45,7 +45,7 @@ var V1RouterWrapper = function (server) {
   router.delete('/user/favorite', controller.delUserFavo, controller.writeResponse);
 
   router.get('/login', auth.login, controller.writeResponse);
-  router.get('/login/auto/:f', auth.autoLogin, controller.writeResponse);
+  router.get('/login/auto', auth.autoLogin, controller.writeResponse);
   // . test test test test
 
   router.post('/login', auth.login, controller.writeResponse);

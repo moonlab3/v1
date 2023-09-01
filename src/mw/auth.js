@@ -23,7 +23,7 @@ function AuthController () {
     },
   });
 
-  const connDBServer = require('../tools/socketIOWrapper')('auth');
+  const connDBServer = require('../lib/socketIOWrapper')('auth');
 
   sendAuthMail = async (req, res, next) => {
 
@@ -112,7 +112,7 @@ function AuthController () {
   login = async (req, res, next) => {
     var cwjy = { action: 'Login', email: req.body.email, password: req.body.password };
     var result = await connDBServer.sendAndReceive(cwjy);
-    var token = jwt.sign({ email: '${req.body.email}', exp: Date.now() }, pk, { algorithm: 'HS256'});
+    var token = jwt.sign({ email: req.body.email, exp: Math.floor(Date.now()/1000 + 3600) }, pk, { algorithm: 'HS256'});
     if(result) {
       var ua = uaparser(req.headers['user-agent']);
       console.log(JSON.stringify(ua));
@@ -141,6 +141,7 @@ function AuthController () {
       return;
     }
     res.response = { responseCode: { type: 'page', name: 'welcome' }, result: [] };
+    console.log('decoded: ' + JSON.stringify(decode));
     next();
 
     /*

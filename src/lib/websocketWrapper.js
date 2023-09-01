@@ -1,6 +1,9 @@
 // websocket wrapper for charge point communication.
 var constants = require('../lib/constants');
 
+// wss is required. evse doesn't support this yet
+// temporary comments
+
 // temporary temporary temporary temporary temporary temporary
 // temporary temporary temporary temporary temporary temporary    -->
 const http = require('http');
@@ -39,10 +42,10 @@ function WebSocketWrapper(server) {
     }
 
     var origin = String(request.resourceURL.pathname).slice(1, request.resourceURL.pathname.length);
-    console.log('connected from ' + origin);
+    console.log(new Date().toLocaleString() + '::connected from ' + origin);
 
     connection.on('message', (message) => {
-      console.log('incoming: ' + message.utf8Data + '\n' + new Date(Date.now()));
+      console.log(new Date().toLocaleString() + '::incoming: ' + message.utf8Data);
       try {
         var incoming = JSON.parse(message.utf8Data);
         var parsed = (incoming[0] == 2) ? { messageType: incoming[0], uuid: incoming[1], action: incoming[2], pdu: incoming[3] }
@@ -83,7 +86,7 @@ function WebSocketWrapper(server) {
     });
 
     connection.on('close', () => {
-      console.log('connection close is called');
+      console.log(new Date().toLocaleString() + 'connection close is called');
       //removeConnection(connection)
     });
 
@@ -131,7 +134,7 @@ function WebSocketWrapper(server) {
     var sending = (data.messageType == 2) ? [data.messageType, data.uuid, data.action, data.pdu]
                                           : [data.messageType, data.uuid, data.pdu];
     //var sending = [data.messageType, data.uuid, data.action, data.pdu];
-    console.log('sending: ' + JSON.stringify(sending));
+    console.log(new Date().toLocaleString() + '::sending: ' + JSON.stringify(sending));
 
     var found = socketArray.find(i => i.destination == destination);
     if (found) {

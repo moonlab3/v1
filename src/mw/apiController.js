@@ -1,8 +1,8 @@
 const json2html  = require('json2html');
 
 function APIController(server) {
-  const connDBServer = require('../tools/socketIOWrapper')('apiServer');
-  const connCP = require('../tools/websocketWrapper')(server);
+  const connDBServer = require('../lib/socketIOWrapper')('apiServer');
+  const connCP = require('../lib/websocketWrapper')(server);
   var waitingJobs = 0;
   var lockArray = [];
   const { v1: uuidv1, v4: uuidv4, } = require('uuid');
@@ -54,9 +54,9 @@ function APIController(server) {
         return;
       }
       if (resultCP.pdu.status == 'Accepted') {
-        cwjy = { action: "StatusNotification", userId: req.body.user, evseSerial: evseSerial, pdu: { status: 'Preparing' } };
         console.log('hscanAction: EVSE says OK to charge');
-        resultDB = await connDBServer.sendAndReceive(cwjy);
+        //cwjy = { action: "StatusNotification", userId: req.body.user, evseSerial: evseSerial, pdu: { status: 'Preparing' } };
+        //resultDB = await connDBServer.sendAndReceive(cwjy);
         response.responseCode = { type: 'page', name: 'charging status' };
         response.result[0].status = 'Preparing';
       }
@@ -65,7 +65,7 @@ function APIController(server) {
         response.responseCode = { type: 'error', name: 'evse problem' };
       }
 
-      cwjy = { action: "NewUserFavo", userId: req.body.user, favo: 'recent' };
+      cwjy = { action: "NewUserFavo", userId: req.body.user, evse: req.body.evse, favo: 'recent' };
       connDBServer.sendOnly(cwjy);
       unlockActionProcess(req.body.evse);
     }
@@ -391,10 +391,10 @@ function APIController(server) {
     switch (req.action) {
       case 'Heartbeat':
       case 'MeterValues':
-      case 'StatusNotification':
       case 'Authorize':
       case 'StartTransaction':
       case 'StopTransaction':
+      case 'StatusNotification':
         conf.pdu = await connDBServer.sendAndReceive(req);
         break;
       case 'ShowArray':       // testOnly

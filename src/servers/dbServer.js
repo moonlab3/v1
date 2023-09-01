@@ -1,6 +1,6 @@
 process.title = process.argv[2];
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
-process.env.NODE_APP_INSTANCE = 1;
+//process.env.NODE_APP_INSTANCE = 1;
 
 const express = require('express');
 const app = express();
@@ -12,20 +12,9 @@ const dbServer = config.get('dbserver');
 const dbms = config.get('dbms');
 
 const controller = require('../mw/logics')(dbms);
-/*
-const dbConnector = require('../tools/dbConnector')();
-const myPool = require('mysql').createPool({
-  port: dbms.port,
-  host: dbms.host,
-  user: dbms.user,
-  password: dbms.password,
-  multipleStatements: true,
-  database: dbms.database
-});
-*/
 
 //const csmsController = require('../mw/csmsLogics')(dbms);
-//const mailer = require('./tools/mail');
+//const mailer = require('./lib/mail');
 
 
 io.of('apiServer').on('connection', (socket) => {
@@ -38,6 +27,7 @@ io.of('apiServer').on('connection', (socket) => {
 
 });
 
+// currently not used
 io.of('nnmServer').on('connection', (socket) => {
   // communication channel with Notification and Mailing server
   // socket router for mobile app and evse API
@@ -64,7 +54,6 @@ io.of('csmsServer').on('connection', (socket) => {
 */
 
 server.listen(dbServer.port, ()=> {
-  //dbConnector.setPool(myPool);
 
   console.log(`DB server on. ${new Date(Date.now())} port: ${dbServer.port} `);
   controller.setTxCount();

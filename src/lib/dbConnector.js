@@ -38,11 +38,10 @@ function DBConnector(dbms) {
   submitSync = (query) => {   
     if (!query)
       return null;
-    //console.log('query: ' + query);
     return new Promise((resolve, reject) => {
       var start = Date.now();
       if (log == 'yes')
-        console.debug(`${new Date()} query submitted \n ${query}`);
+        console.debug(`${new Date().toLocaleString()} query submitted \n ${query}`);
       myPool.query(query, (err, res) => {
         if (err) {
           console.error('dbConnector:submitSync: ' + err);

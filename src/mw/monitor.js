@@ -1,11 +1,11 @@
 var constants = require('../lib/constants');
 
 function DBMonitor(dbms) {
-  var dbConnector = require('../tools/dbConnector')(dbms);
+  var dbConnector = require('../lib/dbConnector')(dbms);
   dbConnector.setLog('no');
 
   async function watch() {
-    console.log('monitor started');
+    //console.log('monitor started');
     var query, result, cwjy, r2;
 
     query = `SELECT chargePointId FROM chargepoint`;
@@ -80,6 +80,7 @@ function DBMonitor(dbms) {
 
   };
 
+  // currently not used. connect to dbms directly from here via dbConnector
   function registerSender(sendingFunction) {
     console.log('registerSender: assigned');
     toDBsvr = sendingFunction;

@@ -1,9 +1,7 @@
 var constants = require('../lib/constants');
 
 function DBController (dbms) {
-//function DBController () {
-  const dbConnector = require('../tools/dbConnector')(dbms);
-  //const dbConnector = require('../tools/dbConnector')();
+  const dbConnector = require('../lib/dbConnector')(dbms);
   var dbSpeedAvg = 0, trxCount = 0, requestCount = 0;
 
   preProcess = (event, cwjy, callback) => {
@@ -50,7 +48,7 @@ function DBController (dbms) {
     var returnValue, query, result;
     switch (cwjy.action) {
       case 'GetSerial':
-        query = `SELECT evseSerial FROM evsecheck WHERE evseNickname = '${cwjy.evseNickname}'`;
+        query = `SELECT evseSerial FROM evse WHERE evseNickname = '${cwjy.evseNickname}'`;
         break;
       case 'EVSEStatus':
         query = `SELECT status FROM evse WHERE evseSerial = '${cwjy.evseSerial}'`;
@@ -62,7 +60,7 @@ function DBController (dbms) {
         // evseSerial
         query = `SELECT evseNickname, status, occupyingUserId, 
                         DATE_FORMAT(occupyingEnd, '%Y-%m-%d %H:%i:%s') AS occupyingEnd, connectorId
-                 FROM evsecheck 
+                 FROM evse
                  WHERE occupyingUserId = '${cwjy.userId}'`;
         break;
       case 'ChargingStatus':
@@ -80,7 +78,7 @@ function DBController (dbms) {
                  WHERE evseSerial = '${cwjy.evseSerial}'`;
         break;
       case 'Angry':
-        query = `SELECT occupyingUserId FROM evsecheck WHERE evseSerial = '${cwjy.evseSerial}'`;
+        query = `SELECT occupyingUserId FROM evse WHERE evseSerial = '${cwjy.evseSerial}'`;
         var target = await dbConnector.submitSync(query);
         query = `SELECT * FROM notification WHERE recipientId = '${target[0].occupyingUserId}'`;
         result = await dbConnector.submitSync(query);
@@ -164,22 +162,23 @@ function DBController (dbms) {
         var A = cwjy.pdu.meterValue[0].sampledValue[2].value;
         var V = cwjy.pdu.meterValue[0].sampledValue[3].value;
         var t = cwjy.pdu.meterValue[0].sampledValue[4].value;
+        var time = cwjy.pdu.meterValue[0].timestamp.value;
         var kw = Math.floor(A * V / 1000);
         query = `SELECT meterStart FROM bill WHERE trxId = '${cwjy.pdu.transactionId}'`;
         result = await dbConnector.submitSync(query);
         if (result[0].meterStart == 0) {
-          query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP WHERE evseSerial = '${cwjy.evseSerial}';
+          query = `UPDATE evse SET lastHeartbeat = FROM_UNIXTIME(${time}) WHERE evseSerial = '${cwjy.evseSerial}';
                     UPDATE bill SET meterNow = '${kwh}' WHERE trxId = '${cwjy.pdu.transactionId}';
                     UPDATE bill SET totalkWh = totalkWh + ${ckWh} WHERE trxId = '${cwjy.pdu.transactionId}';
-                    INSERT INTO evselogs (evseSerial, time, temp, V, A, kWh)
-                    VALUES ('${cwjy.evseSerial}', CURRENT_TIMESTAMP, ${t}, ${V}, ${A}, ${kw}); `;
+                    INSERT INTO evselogs (evseSerial, time, temp, V, A, kWh, tkWh)
+                    VALUES ('${cwjy.evseSerial}', FROM_UNIXTIME(${time}), ${t}, ${V}, ${A}, ${kwh}, ${ckWh}); `;
         }
         else {
-          query = `UPDATE evse SET lastHeartbeat = CURRENT_TIMESTAMP WHERE evseSerial = '${cwjy.evseSerial}';
+          query = `UPDATE evse SET lastHeartbeat = FROM_UNIXTIME(${time}) WHERE evseSerial = '${cwjy.evseSerial}';
                     UPDATE bill SET meterNow = '${kwh}' WHERE trxId = '${cwjy.pdu.transactionId}';
                     UPDATE bill SET totalkWh = meterNow - meterStart WHERE trxId = '${cwjy.pdu.transactionId}';
-                    INSERT INTO evselogs (evseSerial, time, temp, V, A, kWh)
-                    VALUES ('${cwjy.evseSerial}', CURRENT_TIMESTAMP, ${t}, ${V}, ${A}, ${kw}); `;
+                    INSERT INTO evselogs (evseSerial, time, temp, V, A, kWh, tkWh)
+                    VALUES ('${cwjy.evseSerial}', FROM_UNIXTIME(${time}), ${t}, ${V}, ${A}, ${kwh}, ${ckWh}); `;
         }
         break;
       case 'StartTransaction':
@@ -202,37 +201,15 @@ function DBController (dbms) {
         var userId = result ? result[0].userId : cwjy.pdu.idTag;
         var meterStart = cwjy.pdu.meterStart / 1000;
 
-        // epoch convert
-        // / 1000 or not
-                  //VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp}), '${cwjy.evseSerial}', '${userId}',
-                  //VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp}), '${cwjy.evseSerial}', '${userId}',
-                  //VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp}), '${cwjy.evseSerial}', '${userId}',
         query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${userId}'
                   WHERE evseSerial = '${cwjy.evseSerial}';
                  INSERT INTO bill (started, evseSerial, userId, bulkSoc, meterStart, meterNow, trxId)
-                  VALUES (CURRENT_TIMESTAMP, '${cwjy.evseSerial}', '${userId}',
+                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timestamp}), '${cwjy.evseSerial}', '${userId}',
                          '${cwjy.pdu.ressoc}', '${meterStart}', 
                          '${meterStart}', ${cwjy.pdu.transactionId});
                  UPDATE bill b INNER JOIN evse e ON b.evseSerial = e.evseSerial
                   SET b.chargePointId = e.chargePointId, b.evseNickname = e.evseNickname,  b.ownerId = e.ownerId
-                  WHERE b.trxId = ${cwjy.pdu.transactionId};
-                 INSERT INTO favorite (userId, chargePointId, recent)
-                  SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
-                  WHERE evseSerial = '${cwjy.evseSerial}';`;
-        /*
-        query = `UPDATE evse SET status = 'Charging', occupyingUserId = '${userId}', occupyingEnd = FROM_UNIXTIME(${est}) 
-                  WHERE evseSerial = '${cwjy.evseSerial}';
-                 INSERT INTO bill (started, evseSerial, userId, bulkSoc, fullSoc, meterStart, meterNow, trxId)
-                  VALUES (FROM_UNIXTIME(${cwjy.pdu.timeStamp} / 1000), '${cwjy.evseSerial}', '${userId}',
-                         '${cwjy.pdu.bulkSoc}', '${cwjy.pdu.fullSoc}', '${cwjy.pdu.meterStart}', 
-                         '${cwjy.pdu.meterStart}', ${cwjy.pdu.transactionId});
-                 UPDATE bill b INNER JOIN evse e ON b.evseSerial = e.evseSerial
-                  SET b.chargePointId = e.chargePointId, b.evseNickname = e.evseNickname,  b.ownerId = e.ownerId
-                  WHERE b.trxId = ${cwjy.pdu.transactionId};
-                 INSERT INTO favorite (userId, chargePointId, recent)
-                  SELECT occupyingUserId, chargePointId, CURRENT_TIMESTAMP FROM evse
-                  WHERE evseSerial = '${cwjy.evseSerial}';`;
-                  */
+                  WHERE b.trxId = ${cwjy.pdu.transactionId};`;
         // 1000: epoch to tiestamp
         break;
       case 'StopTransaction':
@@ -248,36 +225,25 @@ function DBController (dbms) {
         var totalkWh = meterStop - Number(result[0].meterStart);
         var costhcl = totalkWh * Number(result[0].priceHCL);
         var costhost = totalkWh * Number(result[0].priceHost);
-                 //UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
-                 //UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
-                 //UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
-                 //UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
         if (result[0].meterStart == 0) {
         query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}';
-                 UPDATE bill SET finished = CURRENT_TIMESTAMP, cost = '${costhcl + costhost}',
+                 UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
                                  costHCL = '${costhcl}', costHost='${costhost}', termination = '${cwjy.pdu.reason}', 
                                  meterNow = '${meterStop}'
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
         }
         else {
         query = `UPDATE evse SET status = 'Finishing' WHERE evseSerial = '${cwjy.evseSerial}';
-                 UPDATE bill SET finished = CURRENT_TIMESTAMP, cost = '${costhcl + costhost}',
+                 UPDATE bill SET finished = FROM_UNIXTIME(${cwjy.pdu.timestamp}), cost = '${costhcl + costhost}',
                                  costHCL = '${costhcl}', costHost='${costhost}', termination = '${cwjy.pdu.reason}', 
                                  meterNow = '${meterStop}', totalkWh = '${totalkWh}'
                   WHERE trxId = '${cwjy.pdu.transactionId}';`;
         }
         break;
       case 'StatusNotification':
-        query = (cwjy.userId) ? `UPDATE evse SET status = '${cwjy.pdu.status}'
-                                  WHERE evseSerial = '${cwjy.evseSerial}'`
-                              : `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingEnd = NULL
-                                  WHERE evseSerial = '${cwjy.evseSerial}'`;
-        /*
-        query = (cwjy.userId) ? `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = '${cwjy.userId}'
-                                  WHERE evseSerial = '${cwjy.evseSerial}'`
-                              : `UPDATE evse SET status = '${cwjy.pdu.status}', occupyingUserId = NULL, occupyingEnd = NULL
-                                  WHERE evseSerial = '${cwjy.evseSerial}'`;
-                                  */
+        query = (cwjy.pdu.errorCode == 'NoError') ? `UPDATE evse SET status = '${cwjy.pdu.status}' WHERE evseSerial = '${cwjy.evseSerial}'`
+                                                  : `INSERT INTO issues (evseSerial, time, errorCode)
+                                                      VALUES ('${cwjy.evseSerial}', FROM_UNIXTIME(${cwjy.pdu.timestamp}), '${cwjy.pdu.errorCode}')`;
         break;
       case 'GetCPDetail':
         query = `SELECT chargePointName, chargePointId,  address, locationDetail, lat, lng,
@@ -290,15 +256,6 @@ function DBController (dbms) {
                  WHERE userId = '${cwjy.userId}' AND chargePointId = '${cwjy.chargePointId}'`;
         break;
       case 'GetUserFavo':
-        /*
-        query = (cwjy.favo == 'favorite') ? `SELECT chargePointName, chargePointId, userId, favoriteOrder
-                                              FROM favoriteinfos WHERE userId = '${cwjy.userId}'
-                                              AND favoriteOrder IS NOT NULL ORDER BY favoriteOrder`
-                                          : `SELECT chargePointName, chargePointId, userId, 
-                                              DATE_FORMAT(recent, '%Y-%m-%d %H:%i:%s') as recent
-                                              FROM favoriteinfos WHERE userId = '${cwjy.userId}'
-                                              AND recent IS NOT NULL ORDER BY recent`;
-                                              */
         query = (cwjy.favo == 'favorite') ? `SELECT c.chargePointName AS chargePointName, f.chargePointId AS chargePointId,
                                                     f.favoriteOrder AS favoriteOrder, c.priceHCL AS priceHCL,
                                                     c.priceHost AS priceHost, c.priceExtra AS priceExtra,
@@ -324,20 +281,16 @@ function DBController (dbms) {
                     VALUES ('${cwjy.userId}', '${cwjy.chargePointId}', ${order})`;
         }
         else if(cwjy.favo == 'recent') {
-          query = `SELECT chargePointId AS cpid FROM evse WHERE occupyingUserId = '${cwjy.userId}'`;
+          query = `SELECT chargePointId AS cpid FROM evse WHERE evseNickname = '${cwjy.evse}'`;
           result = await dbConnector.submitSync(query);
           var cpid = result[0].cpid;
-          if(cpid) {
-            query = `SELECT * FROM favorite WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}'`;
-            result = await dbConnector.submitSync(query);
-            result = (result) ? `UPDATE favorite SET recent = CURRENT_TIMESTAMP
-                                  WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}'`
-                              : `INSERT INTO favorite (userId, chargePointId, recent)
-                                  VALUES ('${cwjy.userId}', '${cpid}', CURRENT_TIMESTAMP)`;
-          }
-          else {
-            console.warn('logic error. no such chargepointid.');
-          }
+          console.log(`user: ${cwjy.userId} cp: ${cpid}`);
+          query = `SELECT * FROM favorite WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}' AND favoriteOrder = 0`;
+          result = await dbConnector.submitSync(query);
+          query = (result) ? `UPDATE favorite SET recent = CURRENT_TIMESTAMP
+                                  WHERE userId = '${cwjy.userId}' AND chargePointId = '${cpid}' AND favoriteOrder = 0`
+                           : `INSERT INTO favorite (userId, chargePointId, recent, favoriteOrder)
+                                  VALUES ('${cwjy.userId}', '${cpid}', CURRENT_TIMESTAMP, 0)`;
         }
         else {
           query = null;
